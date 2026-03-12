@@ -1,0 +1,49 @@
+{
+  "name": "erp-frontend",
+  "version": "1.0.0",
+  "description": "IT Department ERP System Frontend",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:auth": "playwright test e2e/01-auth.spec.ts",
+    "test:e2e:admin": "playwright test e2e/02-admin.spec.ts",
+    "test:e2e:attendance": "playwright test e2e/03-attendance.spec.ts",
+    "test:e2e:assignments": "playwright test e2e/04-assignments.spec.ts",
+    "test:e2e:marks": "playwright test e2e/05-marks-notices.spec.ts",
+    "test:e2e:security": "playwright test e2e/06-security.spec.ts",
+    "test:e2e:report": "playwright show-report"
+  },
+  "dependencies": {
+    "@headlessui/react": "^1.7.0",
+    "@heroicons/react": "^2.0.0",
+    "@types/react-window": "^1.8.8",
+    "autoprefixer": "^10.4.0",
+    "axios": "^1.5.0",
+    "date-fns": "^2.30.0",
+    "js-cookie": "^3.0.0",
+    "next": "14.0.0",
+    "postcss": "^8.4.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-hook-form": "^7.45.0",
+    "react-query": "^3.39.0",
+    "react-window": "^2.2.7",
+    "recharts": "^2.8.0",
+    "tailwindcss": "^3.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/js-cookie": "^3.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "14.0.0",
+    "typescript": "^5.0.0"
+  }
+}
