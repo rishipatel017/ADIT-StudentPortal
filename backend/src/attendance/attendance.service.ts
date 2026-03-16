@@ -250,7 +250,7 @@ export class AttendanceService {
     });
 
     if (sessions.length === 0) {
-      throw new NotFoundException('No attendance records found for the selected criteria');
+      return 'No attendance records found for the selected criteria, ,,';
     }
 
     // Build attendance matrix using context students

@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AcademicCoreService, AcademicContext, StudentContext } from '../academic/academic-core.service';
 import { CreateAssignmentDto } from './dtos/create-assignment.dto';
 import { SubmitAssignmentDto } from './dtos/submit-assignment.dto';
+import { NotificationService } from '../notification/notification.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -22,7 +23,8 @@ interface MulterFile {
 export class AssignmentService {
   constructor(
     private prisma: PrismaService,
-    private academicContext: AcademicCoreService
+    private academicContext: AcademicCoreService,
+    private notificationService: NotificationService
   ) {}
 
   async createAssignment(facultyId: number, createAssignmentDto: CreateAssignmentDto, file?: MulterFile) {
@@ -57,6 +59,19 @@ export class AssignmentService {
         divisionId,
       })),
     });
+
+    for (const divisionId of divisionIds) {
+      await this.notificationService.createNotification({
+        title: 'New Assignment',
+        message: `${title} - Due: ${new Date(dueDate).toLocaleDateString()}`,
+        type: 'ASSIGNMENT' as any,
+        semesterId: semester,
+        departmentId: context.semester.departmentId,
+        divisionId: divisionId,
+        isForStudents: true,
+        isForFaculty: false,
+      });
+    }
 
     return {
       ...assignment,

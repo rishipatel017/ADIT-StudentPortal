@@ -1,22 +1,29 @@
-import { IsString, IsEmail, IsOptional, IsNumber, IsInt } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, IsOptional, IsInt, MinLength } from 'class-validator';
 
 export class CreateStudentDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Invalid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
   email: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(6, { message: 'Password must be at least 6 characters' })
   password: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Name is required' })
   name: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Enrollment number is required' })
   enrollmentNo: string;
 
   @IsInt()
+  @IsNotEmpty({ message: 'Division ID is required' })
   divisionId: number;
 
   @IsInt()
+  @IsNotEmpty({ message: 'Semester ID is required' })
   semesterId: number;
 }
 
@@ -27,6 +34,7 @@ export class UpdateStudentDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(6)
   password?: string;
 
   @IsOptional()
@@ -37,11 +45,11 @@ export class UpdateStudentDto {
   @IsString()
   enrollmentNo?: string;
 
-  @IsOptional()
   @IsInt()
+  @IsOptional()
   divisionId?: number;
 
-  @IsOptional()
   @IsInt()
+  @IsOptional()
   semesterId?: number;
 }

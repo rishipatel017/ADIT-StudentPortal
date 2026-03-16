@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import ModernLayout from '../../components/Layout/ModernLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, Card, DataTable, StatCard, Input, Select, Modal } from '../../components/UI';
+import { ComparisonPieChart, TrendLineChart, DistributionBarChart } from '../../components/UI/AnalyticsCharts';
 import { useSemesters, useDivisions, useSubjects, useStudents } from '../../hooks/useAcademicData';
 import { userService } from '../../services/auth.service';
 import { departmentService, subjectService, divisionService } from '../../services/academic.service';
@@ -10,6 +11,7 @@ import { studentService } from '../../services/user.service';
 import { facultyService } from '../../services/user.service';
 import { AuthGuard } from '../../components/Auth/AuthGuard';
 import api from '../../services/api';
+import { ChatComponent } from '../../components/Chat/ChatComponent';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -17,7 +19,9 @@ const getAttachmentUrl = (attachment: any): string | null => {
   if (!attachment || typeof attachment !== 'string') return null;
   if (/^https?:\/\//i.test(attachment)) return attachment;
   const path = attachment.startsWith('/') ? attachment : `/${attachment}`;
-  return `${API_BASE_URL}${path}`;
+  // Fix: Ensure /uploads prefix is present if it's a relative path and doesn't have it
+  const finalPath = path.startsWith('/uploads') ? path : `/uploads${path}`;
+  return `${API_BASE_URL}${finalPath}`;
 };
 
 type AdminStudentRow = {
@@ -112,6 +116,7 @@ const AdminDashboardContent: React.FC = () => {
   const [allDivisions, setAllDivisions] = useState<any[]>([]);
   const [allNotices, setAllNotices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reportStats, setReportStats] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedNotice, setSelectedNotice] = useState<any | null>(null);
 
@@ -125,6 +130,16 @@ const AdminDashboardContent: React.FC = () => {
   const [promotionPreview, setPromotionPreview] = useState<any | null>(null);
   const [promotionLoading, setPromotionLoading] = useState(false);
   const [promotionError, setPromotionError] = useState<string | null>(null);
+
+  // Pagination states
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentTotal, setStudentTotal] = useState(0);
+  const [facultyPage, setFacultyPage] = useState(1);
+  const [facultyTotal, setFacultyTotal] = useState(0);
+  const [subjectPage, setSubjectPage] = useState(1);
+  const [subjectTotal, setSubjectTotal] = useState(0);
+  const [divisionPage, setDivisionPage] = useState(1);
+  const [divisionTotal, setDivisionTotal] = useState(0);
 
   // CRUD Modal States
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -182,6 +197,8 @@ const AdminDashboardContent: React.FC = () => {
     semesterId: '',
     divisionId: '',
   });
+  const [noticeFile, setNoticeFile] = useState<File | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [noticeSemesterSelection, setNoticeSemesterSelection] = useState<number | undefined>();
   const { options: noticeDivisionOptions } = useDivisions(noticeSemesterSelection);
@@ -193,7 +210,7 @@ const AdminDashboardContent: React.FC = () => {
       setActiveTab('dashboard');
       return;
     }
-    const allowed = ['dashboard', 'students', 'faculty', 'departments', 'divisions', 'subjects', 'notices', 'faculty-assignment', 'promotion', 'reports'];
+    const allowed = ['dashboard', 'students', 'faculty', 'departments', 'divisions', 'subjects', 'notices', 'faculty-assignment', 'promotion', 'reports', 'chat'];
     setActiveTab(allowed.includes(tab) ? tab : 'dashboard');
   }, [router.query.tab]);
 
@@ -214,6 +231,62 @@ const AdminDashboardContent: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'students') fetchStudents();
+  }, [studentPage]);
+
+  useEffect(() => {
+    if (activeTab === 'faculty') fetchFaculty();
+  }, [facultyPage]);
+
+  useEffect(() => {
+    if (activeTab === 'subjects') fetchSubjects();
+  }, [subjectPage]);
+
+  useEffect(() => {
+    if (activeTab === 'divisions') fetchDivisions();
+  }, [divisionPage]);
+
+  const fetchStudents = async () => {
+    try {
+      const res = await api.get('/admin/students', { params: { page: studentPage, limit: 10 } });
+      setStudents(res.data.data || []);
+      setStudentTotal(res.data.meta?.total || 0);
+    } catch (e) {
+      console.error('Error fetching students:', e);
+    }
+  };
+
+  const fetchFaculty = async () => {
+    try {
+      const res = await api.get('/admin/faculty', { params: { page: facultyPage, limit: 10 } });
+      setFaculty(res.data.data || []);
+      setFacultyTotal(res.data.meta?.total || 0);
+    } catch (e) {
+      console.error('Error fetching faculty:', e);
+    }
+  };
+
+  const fetchSubjects = async () => {
+    try {
+      const res = await api.get('/admin/subjects', { params: { page: subjectPage, limit: 10 } });
+      setAllSubjects(res.data.data || []);
+      setSubjectTotal(res.data.meta?.total || 0);
+    } catch (e) {
+      console.error('Error fetching subjects:', e);
+    }
+  };
+
+  const fetchDivisions = async () => {
+    try {
+      const res = await api.get('/admin/divisions', { params: { page: divisionPage, limit: 10 } });
+      setAllDivisions(res.data.data || []);
+      setDivisionTotal(res.data.meta?.total || 0);
+    } catch (e) {
+      console.error('Error fetching divisions:', e);
+    }
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -224,13 +297,16 @@ const AdminDashboardContent: React.FC = () => {
         userService.getUserStats(),
         api.get('/admin/dashboard/stats').then((r) => r.data).catch(() => null),
         departmentService.getAllDepartments(),
-        api.get('/admin/students').then(r => r.data),
-        api.get('/admin/faculty').then(r => r.data),
-        api.get('/admin/subjects').then((r) => r.data).catch(() => ({ data: [] })),
-        api.get('/admin/divisions').then((r) => r.data).catch(() => ({ data: [] }))
+        api.get('/admin/students', { params: { page: studentPage, limit: 10 } }).then(r => r.data),
+        api.get('/admin/faculty', { params: { page: facultyPage, limit: 10 } }).then(r => r.data),
+        api.get('/admin/subjects', { params: { page: subjectPage, limit: 10 } }).then((r) => r.data).catch(() => ({ data: [] })),
+        api.get('/admin/divisions', { params: { page: divisionPage, limit: 10 } }).then((r) => r.data).catch(() => ({ data: [] }))
       ]);
 
       const noticesData = await api.get('/notices/all').then((r) => r.data).catch(() => []);
+      
+      // Fetch faculty subject assignments
+      fetchFacultySubjectAssignments();
 
       setStats(statsData);
       if (adminStatsData) {
@@ -261,13 +337,15 @@ const AdminDashboardContent: React.FC = () => {
       });
       setDepartments(mappedDepartments);
       setAllDepartments(Array.isArray(departmentsData) ? departmentsData : []);
-      const studentsArr = Array.isArray(studentsData) ? studentsData : (Array.isArray(studentsData?.data) ? studentsData.data : []);
-      const facultyArr = Array.isArray(facultyData) ? facultyData : (Array.isArray(facultyData?.data) ? facultyData.data : []);
-      const subjectsArr = Array.isArray(subjectsData) ? subjectsData : (Array.isArray(subjectsData?.data) ? subjectsData.data : []);
-      const divisionsArr = Array.isArray(divisionsData) ? divisionsData : (Array.isArray(divisionsData?.data) ? divisionsData.data : []);
+      setStudents(Array.isArray(studentsData.data) ? studentsData.data : []);
+      setStudentTotal(studentsData.meta?.total || 0);
+      setFaculty(Array.isArray(facultyData.data) ? facultyData.data : []);
+      setFacultyTotal(facultyData.meta?.total || 0);
 
-      setStudents(studentsArr);
-      setFaculty(facultyArr);
+      const subjectsArr = Array.isArray(subjectsData.data) ? subjectsData.data : [];
+      setSubjectTotal(subjectsData.meta?.total || 0);
+      const divisionsArr = Array.isArray(divisionsData.data) ? divisionsData.data : [];
+      setDivisionTotal(divisionsData.meta?.total || 0);
 
       const filteredSubjects = subjectsArr.filter((s: any) => {
         const n = s?.semester?.number;
@@ -282,6 +360,10 @@ const AdminDashboardContent: React.FC = () => {
       setAllSubjects(filteredSubjects);
       setAllDivisions(filteredDivisions);
       setAllNotices(Array.isArray(noticesData) ? noticesData : []);
+
+      // Fetch report statistics
+      const statsRes = await api.get('/reports/summary');
+      setReportStats(statsRes.data);
 
     } catch (error) {
       console.error('Dashboard data fetch error:', error);
@@ -407,6 +489,7 @@ const AdminDashboardContent: React.FC = () => {
       divisionId: '',
       semesterId: ''
     });
+    setFormErrors({});
     setShowStudentModal(true);
   };
 
@@ -420,6 +503,7 @@ const AdminDashboardContent: React.FC = () => {
       divisionId: row?.divisionId ? String(row.divisionId) : (row?.division?.id ? String(row.division.id) : ''),
       semesterId: row?.semesterId ? String(row.semesterId) : (row?.semester?.id ? String(row.semester.id) : ''),
     });
+    setFormErrors({});
     setShowStudentModal(true);
   };
 
@@ -437,7 +521,7 @@ const AdminDashboardContent: React.FC = () => {
   };
 
   const handleViewNotice = (row: any) => {
-    setEditingItem(null);
+    setEditingItem({ ...row, viewOnly: true });
     setSelectedNotice(row);
     setNoticeForm({
       title: row?.title || '',
@@ -448,6 +532,7 @@ const AdminDashboardContent: React.FC = () => {
       divisionId: row?.divisionId != null ? String(row.divisionId) : '',
     });
     setNoticeSemesterSelection(row?.semesterId != null ? Number(row.semesterId) : undefined);
+    setFormErrors({});
     setShowNoticeModal(true);
   };
 
@@ -463,6 +548,7 @@ const AdminDashboardContent: React.FC = () => {
       divisionId: row?.divisionId != null ? String(row.divisionId) : '',
     });
     setNoticeSemesterSelection(row?.semesterId != null ? Number(row.semesterId) : undefined);
+    setFormErrors({});
     setShowNoticeModal(true);
   };
 
@@ -479,28 +565,83 @@ const AdminDashboardContent: React.FC = () => {
     }
   };
 
+  const handleAddNotice = () => {
+    setEditingItem(null);
+    setSelectedNotice(null);
+    setNoticeForm({
+      title: '',
+      content: '',
+      isForStudents: true,
+      isForFaculty: false,
+      semesterId: '',
+      divisionId: '',
+    });
+    setNoticeSemesterSelection(undefined);
+    setNoticeFile(null);
+    setFormErrors({});
+    setShowNoticeModal(true);
+  };
+
   const handleNoticeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingItem) return;
+    
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    if (!noticeForm.title.trim()) errors.title = 'Title is required';
+    if (!noticeForm.content.trim()) errors.content = 'Content is required';
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     setFormLoading(true);
     try {
-      const payload: any = {
-        title: noticeForm.title,
-        content: noticeForm.content,
-        isForStudents: !!noticeForm.isForStudents,
-        isForFaculty: !!noticeForm.isForFaculty,
-        semester: noticeForm.semesterId ? Number(noticeForm.semesterId) : null,
-        divisionId: noticeForm.divisionId ? Number(noticeForm.divisionId) : null,
+      const formData = new FormData();
+      formData.append('title', noticeForm.title.trim());
+      formData.append('content', noticeForm.content.trim());
+      formData.append('isForStudents', String(!!noticeForm.isForStudents));
+      formData.append('isForFaculty', String(!!noticeForm.isForFaculty));
+      
+      if (noticeForm.semesterId) {
+        formData.append('semester', noticeForm.semesterId);
+      }
+      if (noticeForm.divisionId) {
+        formData.append('divisionId', noticeForm.divisionId);
+      }
+      if (noticeFile) {
+        formData.append('file', noticeFile);
+      }
+
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       };
 
-      await api.put(`/notices/${editingItem.id}`, payload);
+      if (editingItem && !editingItem.viewOnly) {
+        await api.put(`/notices/${editingItem.id}`, formData, config);
+      } else if (!editingItem) {
+        await api.post('/notices', formData, config);
+      }
+
       setShowNoticeModal(false);
       setEditingItem(null);
+      setNoticeFile(null);
+      setFormErrors({});
       await fetchDashboardData();
     } catch (e: any) {
-      console.error('Error updating notice:', e);
-      alert(e?.response?.data?.message || 'Failed to update notice');
+      console.error('Error saving notice:', e);
+      if (e?.response?.data?.message) {
+        const backendMessage = e.response.data.message;
+        if (Array.isArray(backendMessage)) {
+           setFormErrors({ general: backendMessage.join(', ') });
+        } else {
+           setFormErrors({ general: backendMessage });
+        }
+      } else {
+        setFormErrors({ general: 'Failed to save notice. Service might be temporarily unavailable.' });
+      }
     } finally {
       setFormLoading(false);
     }
@@ -508,9 +649,14 @@ const AdminDashboardContent: React.FC = () => {
 
   const renderNotices = () => (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-page-title">Notices Management</h1>
-        <p className="text-body text-gray-600 mt-2">View, update, and delete notices</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-page-title">Notices Management</h1>
+          <p className="text-body text-gray-600 mt-2">View, update, and delete notices</p>
+        </div>
+        <Button variant="primary" onClick={handleAddNotice}>
+          + Add Notice
+        </Button>
       </div>
 
       <DataTable
@@ -551,8 +697,9 @@ const AdminDashboardContent: React.FC = () => {
           setShowNoticeModal(false);
           setEditingItem(null);
           setSelectedNotice(null);
+          setFormErrors({});
         }}
-        title={editingItem ? 'Update Notice' : 'View Notice'}
+        title={editingItem ? (editingItem.viewOnly ? 'View Notice' : 'Update Notice') : 'Create Notice'}
       >
         <form onSubmit={handleNoticeSubmit} className="space-y-4">
           <div>
@@ -561,24 +708,26 @@ const AdminDashboardContent: React.FC = () => {
               value={noticeForm.title}
               onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
               required
-              disabled={!editingItem}
+              disabled={!!editingItem?.viewOnly}
             />
+            {formErrors.title && <p className="text-red-500 text-xs mt-1">{formErrors.title}</p>}
           </div>
           <div>
             <label className="form-label">Content</label>
             <textarea
-              className="form-input"
+              className={`form-input ${formErrors.content ? 'border-red-500' : ''}`}
               value={noticeForm.content}
               onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
               required
-              disabled={!editingItem}
+              disabled={!!editingItem?.viewOnly}
               rows={6}
             />
+            {formErrors.content && <p className="text-red-500 text-xs mt-1">{formErrors.content}</p>}
           </div>
 
           {getAttachmentUrl(selectedNotice?.attachment) ? (
             <div>
-              <label className="form-label">Attachment</label>
+              <label className="form-label">Current Attachment</label>
               <a
                 className="text-sm text-blue-600 underline"
                 href={getAttachmentUrl(selectedNotice?.attachment) as string}
@@ -589,6 +738,28 @@ const AdminDashboardContent: React.FC = () => {
               </a>
             </div>
           ) : null}
+
+          {editingItem && (
+            <div>
+              <label className="form-label">Upload {selectedNotice?.attachment ? 'New ' : ''}Attachment</label>
+              <input
+                type="file"
+                className="form-input"
+                onChange={(e) => setNoticeFile(e.target.files ? e.target.files[0] : null)}
+              />
+              <p className="text-xs text-gray-500 mt-1">Leave empty to keep existing attachment</p>
+            </div>
+          )}
+          {!editingItem && !selectedNotice?.id && (
+             <div>
+              <label className="form-label">Attachment</label>
+              <input
+                type="file"
+                className="form-input"
+                onChange={(e) => setNoticeFile(e.target.files ? e.target.files[0] : null)}
+              />
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="form-label">For Students</label>
@@ -596,7 +767,7 @@ const AdminDashboardContent: React.FC = () => {
                 className="form-select"
                 value={noticeForm.isForStudents ? 'true' : 'false'}
                 onChange={(e) => setNoticeForm({ ...noticeForm, isForStudents: e.target.value === 'true' })}
-                disabled={!editingItem}
+                disabled={!!editingItem?.viewOnly}
               >
                 <option value="true">Yes</option>
                 <option value="false">No</option>
@@ -608,7 +779,7 @@ const AdminDashboardContent: React.FC = () => {
                 className="form-select"
                 value={noticeForm.isForFaculty ? 'true' : 'false'}
                 onChange={(e) => setNoticeForm({ ...noticeForm, isForFaculty: e.target.value === 'true' })}
-                disabled={!editingItem}
+                disabled={!!editingItem?.viewOnly}
               >
                 <option value="true">Yes</option>
                 <option value="false">No</option>
@@ -626,7 +797,7 @@ const AdminDashboardContent: React.FC = () => {
               }}
               options={semesterOptions}
               placeholder="All Semesters"
-              disabled={!editingItem}
+              disabled={!!editingItem?.viewOnly}
             />
             <Select
               label="Division"
@@ -634,14 +805,24 @@ const AdminDashboardContent: React.FC = () => {
               onChange={(e) => setNoticeForm({ ...noticeForm, divisionId: e.target.value })}
               options={noticeDivisionOptions}
               placeholder="All Divisions"
-              disabled={!editingItem || !noticeForm.semesterId}
+              disabled={!!editingItem?.viewOnly || !noticeForm.semesterId}
             />
           </div>
 
+          {formErrors.general && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded text-sm mb-4">
+              {formErrors.general}
+            </div>
+          )}
+
           <div className="flex space-x-3">
-            {editingItem ? (
+            {editingItem && !editingItem.viewOnly ? (
               <Button type="submit" variant="primary" disabled={formLoading}>
                 {formLoading ? 'Saving...' : 'Update Notice'}
+              </Button>
+            ) : !editingItem ? (
+               <Button type="submit" variant="primary" disabled={formLoading}>
+                {formLoading ? 'Saving...' : 'Create Notice'}
               </Button>
             ) : null}
             <Button
@@ -671,6 +852,7 @@ const AdminDashboardContent: React.FC = () => {
       phone: '',
       pastExperienceYears: ''
     });
+    setFormErrors({});
     setShowFacultyModal(true);
   };
 
@@ -685,6 +867,7 @@ const AdminDashboardContent: React.FC = () => {
       phone: row?.phone || '',
       pastExperienceYears: row?.pastExperienceYears != null ? String(row.pastExperienceYears) : '',
     });
+    setFormErrors({});
     setShowFacultyModal(true);
   };
 
@@ -710,6 +893,7 @@ const AdminDashboardContent: React.FC = () => {
       credits: '',
       semesterId: ''
     });
+    setFormErrors({});
     setShowSubjectModal(true);
   };
 
@@ -744,6 +928,7 @@ const AdminDashboardContent: React.FC = () => {
       name: '',
       semesterId: ''
     });
+    setFormErrors({});
     setShowDivisionModal(true);
   };
 
@@ -753,6 +938,7 @@ const AdminDashboardContent: React.FC = () => {
       name: row?.name || '',
       semesterId: row?.semesterId != null ? String(row.semesterId) : '',
     });
+    setFormErrors({});
     setShowDivisionModal(true);
   };
 
@@ -772,6 +958,7 @@ const AdminDashboardContent: React.FC = () => {
   const handleAddDepartment = () => {
     setEditingItem(null);
     setDepartmentForm({ name: '', code: '' });
+    setFormErrors({});
     setShowDepartmentModal(true);
   };
 
@@ -781,6 +968,7 @@ const AdminDashboardContent: React.FC = () => {
       name: row?.name || '',
       code: row?.code || '',
     });
+    setFormErrors({});
     setShowDepartmentModal(true);
   };
 
@@ -799,29 +987,59 @@ const AdminDashboardContent: React.FC = () => {
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    const name = studentForm.name.trim();
+    const email = studentForm.email.trim();
+    const password = studentForm.password.trim();
+    const enrollmentNo = studentForm.enrollmentNo.trim();
+
+    if (!name) errors.name = 'Name is required';
+    if (!email) errors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Invalid email format';
+    
+    if (!editingItem && !password) errors.password = 'Password is required';
+    else if (password && password.length < 6) errors.password = 'Password must be at least 6 characters';
+    
+    if (!enrollmentNo) errors.enrollmentNo = 'Enrollment number is required';
+    if (!studentForm.divisionId) errors.divisionId = 'Division is required';
+    if (!studentForm.semesterId) errors.semesterId = 'Semester is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setFormLoading(true);
     try {
       const payload: any = {
-        name: studentForm.name,
-        email: studentForm.email,
-        enrollmentNo: studentForm.enrollmentNo,
-        divisionId: studentForm.divisionId ? Number(studentForm.divisionId) : undefined,
-        semesterId: studentForm.semesterId ? Number(studentForm.semesterId) : undefined,
+        name,
+        email,
+        enrollmentNo,
+        divisionId: Number(studentForm.divisionId),
+        semesterId: Number(studentForm.semesterId),
       };
 
       if (!editingItem) {
-        payload.password = studentForm.password;
+        payload.password = password;
         await api.post('/admin/students', payload);
       } else {
-        if (studentForm.password) payload.password = studentForm.password;
+        if (password) payload.password = password;
         await api.put(`/admin/students/${editingItem.id}`, payload);
       }
 
       setShowStudentModal(false);
-      fetchDashboardData(); // Refresh data
-    } catch (error) {
+      setFormErrors({});
+      fetchDashboardData();
+    } catch (error: any) {
       console.error('Error saving student:', error);
-      alert('Failed to save student');
+      if (error?.response?.data?.message) {
+        const msg = error.response.data.message;
+        setFormErrors({ general: Array.isArray(msg) ? msg.join(', ') : msg });
+      } else {
+        setFormErrors({ general: 'Failed to save student. Service might be temporarily unavailable.' });
+      }
     } finally {
       setFormLoading(false);
     }
@@ -829,45 +1047,92 @@ const AdminDashboardContent: React.FC = () => {
 
   const handleFacultySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    const name = facultyForm.name.trim();
+    const email = facultyForm.email.trim();
+    const password = facultyForm.password.trim();
+    const designation = facultyForm.designation.trim();
+    const qualification = facultyForm.qualification.trim();
+
+    if (!name) errors.name = 'Name is required';
+    if (!email) errors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Invalid email format';
+    
+    if (!editingItem && !password) errors.password = 'Password is required';
+    else if (password && password.length < 6) errors.password = 'Password must be at least 6 characters';
+    
+    if (!designation) errors.designation = 'Designation is required';
+    if (!qualification) errors.qualification = 'Qualification is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setFormLoading(true);
     try {
       const payload: any = {
-        name: facultyForm.name,
-        email: facultyForm.email,
-        designation: facultyForm.designation,
-        qualification: facultyForm.qualification,
-        phone: facultyForm.phone || undefined,
+        name,
+        email,
+        designation,
+        qualification,
+        phone: facultyForm.phone ? facultyForm.phone.trim() : undefined,
         pastExperienceYears: facultyForm.pastExperienceYears ? Number(facultyForm.pastExperienceYears) : undefined,
       };
 
       if (!editingItem) {
-        payload.password = facultyForm.password;
+        payload.password = password;
         await api.post('/admin/faculty', payload);
       } else {
-        if (facultyForm.password) payload.password = facultyForm.password;
+        if (password) payload.password = password;
         await api.put(`/admin/faculty/${editingItem.id}`, payload);
       }
 
       setShowFacultyModal(false);
-      fetchDashboardData(); // Refresh data
-    } catch (error) {
+      setFormErrors({});
+      fetchDashboardData();
+    } catch (error: any) {
       console.error('Error saving faculty:', error);
-      alert('Failed to save faculty');
+      if (error?.response?.data?.message) {
+        const msg = error.response.data.message;
+        setFormErrors({ general: Array.isArray(msg) ? msg.join(', ') : msg });
+      } else {
+        setFormErrors({ general: 'Failed to save faculty. Service might be temporarily unavailable.' });
+      }
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleSubjectSubmit = async (e: React.FormEvent) => {
+   const handleSubjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    const name = subjectForm.name.trim();
+    const code = subjectForm.code.trim();
+    const type = subjectForm.type.trim();
+
+    if (!name) errors.name = 'Subject name is required';
+    if (!code) errors.code = 'Subject code is required';
+    if (!type) errors.type = 'Subject type is required';
+    if (!subjectForm.semesterId) errors.semesterId = 'Semester is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setFormLoading(true);
     try {
       const payload: any = {
-        name: subjectForm.name,
-        code: subjectForm.code,
-        type: subjectForm.type,
+        name,
+        code,
+        type,
         credits: subjectForm.credits ? Number(subjectForm.credits) : undefined,
-        semesterId: subjectForm.semesterId ? Number(subjectForm.semesterId) : undefined,
+        semesterId: Number(subjectForm.semesterId),
       };
 
       if (!editingItem) {
@@ -877,10 +1142,16 @@ const AdminDashboardContent: React.FC = () => {
       }
 
       setShowSubjectModal(false);
+      setFormErrors({});
       await fetchDashboardData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving subject:', error);
-      alert('Failed to save subject');
+      if (error?.response?.data?.message) {
+        const msg = error.response.data.message;
+        setFormErrors({ general: Array.isArray(msg) ? msg.join(', ') : msg });
+      } else {
+        setFormErrors({ general: 'Failed to save subject. Service might be temporarily unavailable.' });
+      }
     } finally {
       setFormLoading(false);
     }
@@ -888,11 +1159,23 @@ const AdminDashboardContent: React.FC = () => {
 
   const handleDivisionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    const name = divisionForm.name.trim();
+    if (!name) errors.name = 'Division name is required';
+    if (!divisionForm.semesterId) errors.semesterId = 'Semester is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setFormLoading(true);
     try {
       const payload: any = {
-        name: divisionForm.name,
-        semesterId: divisionForm.semesterId ? Number(divisionForm.semesterId) : undefined,
+        name,
+        semesterId: Number(divisionForm.semesterId),
       };
 
       if (!editingItem) {
@@ -902,10 +1185,16 @@ const AdminDashboardContent: React.FC = () => {
       }
 
       setShowDivisionModal(false);
+      setFormErrors({});
       await fetchDashboardData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving division:', error);
-      alert('Failed to save division');
+      if (error?.response?.data?.message) {
+        const msg = error.response.data.message;
+        setFormErrors({ general: Array.isArray(msg) ? msg.join(', ') : msg });
+      } else {
+        setFormErrors({ general: 'Failed to save division. Service might be temporarily unavailable.' });
+      }
     } finally {
       setFormLoading(false);
     }
@@ -913,11 +1202,24 @@ const AdminDashboardContent: React.FC = () => {
 
   const handleDepartmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    const name = departmentForm.name.trim();
+    const code = departmentForm.code.trim();
+    if (!name) errors.name = 'Department name is required';
+    if (!code) errors.code = 'Department code is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
     setFormLoading(true);
     try {
       const payload: any = {
-        name: departmentForm.name,
-        code: departmentForm.code,
+        name,
+        code,
       };
 
       if (!editingItem) {
@@ -927,10 +1229,16 @@ const AdminDashboardContent: React.FC = () => {
       }
 
       setShowDepartmentModal(false);
+      setFormErrors({});
       await fetchDashboardData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving department:', error);
-      alert('Failed to save department');
+      if (error?.response?.data?.message) {
+        const msg = error.response.data.message;
+        setFormErrors({ general: Array.isArray(msg) ? msg.join(', ') : msg });
+      } else {
+        setFormErrors({ general: 'Failed to save department. Service might be temporarily unavailable.' });
+      }
     } finally {
       setFormLoading(false);
     }
@@ -1163,6 +1471,10 @@ const AdminDashboardContent: React.FC = () => {
         columns={studentColumns}
         searchable
         pagination
+        manualPagination
+        totalItems={studentTotal}
+        currentPage={studentPage}
+        onPageChange={setStudentPage}
         pageSize={10}
         emptyMessage="No students found"
       />
@@ -1181,6 +1493,7 @@ const AdminDashboardContent: React.FC = () => {
               onChange={(e) => setStudentForm({...studentForm, name: e.target.value})}
               required
             />
+            {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
           </div>
           <div>
             <label className="form-label">Email</label>
@@ -1190,6 +1503,7 @@ const AdminDashboardContent: React.FC = () => {
               onChange={(e) => setStudentForm({...studentForm, email: e.target.value})}
               required
             />
+            {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
           </div>
           {!editingItem && (
             <div>
@@ -1200,6 +1514,19 @@ const AdminDashboardContent: React.FC = () => {
                 onChange={(e) => setStudentForm({...studentForm, password: e.target.value})}
                 required
               />
+              {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
+            </div>
+          )}
+          {editingItem && (
+            <div>
+              <label className="form-label">New Password (leave empty to keep current)</label>
+              <Input
+                type="password"
+                value={studentForm.password}
+                onChange={(e) => setStudentForm({...studentForm, password: e.target.value})}
+                placeholder="At least 6 characters"
+              />
+              {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
             </div>
           )}
           <div>
@@ -1209,6 +1536,7 @@ const AdminDashboardContent: React.FC = () => {
               onChange={(e) => setStudentForm({...studentForm, enrollmentNo: e.target.value})}
               required
             />
+            {formErrors.enrollmentNo && <p className="text-red-500 text-xs mt-1">{formErrors.enrollmentNo}</p>}
           </div>
           <div>
             <label className="form-label">Semester</label>
@@ -1223,6 +1551,7 @@ const AdminDashboardContent: React.FC = () => {
               placeholder="Select Semester"
               required
             />
+            {formErrors.semesterId && <p className="text-red-500 text-xs mt-1">{formErrors.semesterId}</p>}
           </div>
           <div>
             <label className="form-label">Division</label>
@@ -1234,7 +1563,15 @@ const AdminDashboardContent: React.FC = () => {
               required
               disabled={!studentForm.semesterId}
             />
+            {formErrors.divisionId && <p className="text-red-500 text-xs mt-1">{formErrors.divisionId}</p>}
           </div>
+
+          {formErrors.general && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded text-sm mb-4">
+              {formErrors.general}
+            </div>
+          )}
+
           <div className="flex space-x-3">
             <Button type="submit" variant="primary" disabled={formLoading}>
               {formLoading ? 'Saving...' : (editingItem ? 'Update' : 'Add') + ' Student'}
@@ -1265,6 +1602,10 @@ const AdminDashboardContent: React.FC = () => {
         columns={facultyColumns}
         searchable
         pagination
+        manualPagination
+        totalItems={facultyTotal}
+        currentPage={facultyPage}
+        onPageChange={setFacultyPage}
         pageSize={10}
         emptyMessage="No faculty found"
       />
@@ -1278,33 +1619,54 @@ const AdminDashboardContent: React.FC = () => {
           <div>
             <label className="form-label">Name</label>
             <Input value={facultyForm.name} onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })} required />
+            {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
           </div>
           <div>
             <label className="form-label">Email</label>
             <Input type="email" value={facultyForm.email} onChange={(e) => setFacultyForm({ ...facultyForm, email: e.target.value })} required />
+            {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
           </div>
           {!editingItem && (
             <div>
               <label className="form-label">Password</label>
               <Input type="password" value={facultyForm.password} onChange={(e) => setFacultyForm({ ...facultyForm, password: e.target.value })} required />
+              {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
+            </div>
+          )}
+          {editingItem && (
+            <div>
+              <label className="form-label">New Password (leave empty to keep current)</label>
+              <Input type="password" value={facultyForm.password} onChange={(e) => setFacultyForm({ ...facultyForm, password: e.target.value })} placeholder="At least 6 characters" />
+              {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
             </div>
           )}
           <div>
             <label className="form-label">Designation</label>
             <Input value={facultyForm.designation} onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })} required />
+            {formErrors.designation && <p className="text-red-500 text-xs mt-1">{formErrors.designation}</p>}
           </div>
           <div>
             <label className="form-label">Qualification</label>
             <Input value={facultyForm.qualification} onChange={(e) => setFacultyForm({ ...facultyForm, qualification: e.target.value })} required />
+            {formErrors.qualification && <p className="text-red-500 text-xs mt-1">{formErrors.qualification}</p>}
           </div>
           <div>
             <label className="form-label">Phone</label>
             <Input value={facultyForm.phone} onChange={(e) => setFacultyForm({ ...facultyForm, phone: e.target.value })} />
+            {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
           </div>
           <div>
             <label className="form-label">Past Experience Years</label>
             <Input type="number" value={facultyForm.pastExperienceYears} onChange={(e) => setFacultyForm({ ...facultyForm, pastExperienceYears: e.target.value })} />
+            {formErrors.pastExperienceYears && <p className="text-red-500 text-xs mt-1">{formErrors.pastExperienceYears}</p>}
           </div>
+
+          {formErrors.general && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded text-sm mb-4">
+              {formErrors.general}
+            </div>
+          )}
+
           <div className="flex space-x-3">
             <Button type="submit" variant="primary" disabled={formLoading}>
               {formLoading ? 'Saving...' : (editingItem ? 'Update' : 'Add') + ' Faculty'}
@@ -1355,6 +1717,10 @@ const AdminDashboardContent: React.FC = () => {
         ]}
         searchable
         pagination
+        manualPagination
+        totalItems={subjectTotal}
+        currentPage={subjectPage}
+        onPageChange={setSubjectPage}
         pageSize={10}
         emptyMessage="No subjects found"
       />
@@ -1368,23 +1734,35 @@ const AdminDashboardContent: React.FC = () => {
           <div>
             <label className="form-label">Name</label>
             <Input value={subjectForm.name} onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })} required />
+            {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
           </div>
           <div>
             <label className="form-label">Code</label>
             <Input value={subjectForm.code} onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })} required />
+            {formErrors.code && <p className="text-red-500 text-xs mt-1">{formErrors.code}</p>}
           </div>
           <div>
             <label className="form-label">Type</label>
             <Input value={subjectForm.type} onChange={(e) => setSubjectForm({ ...subjectForm, type: e.target.value })} required />
+            {formErrors.type && <p className="text-red-500 text-xs mt-1">{formErrors.type}</p>}
           </div>
           <div>
             <label className="form-label">Credits</label>
             <Input type="number" value={subjectForm.credits} onChange={(e) => setSubjectForm({ ...subjectForm, credits: e.target.value })} />
+            {formErrors.credits && <p className="text-red-500 text-xs mt-1">{formErrors.credits}</p>}
           </div>
           <div>
             <label className="form-label">Semester</label>
             <Select value={subjectForm.semesterId} onChange={(e) => setSubjectForm({ ...subjectForm, semesterId: e.target.value })} options={semesterOptions} placeholder="Select Semester" required />
+            {formErrors.semesterId && <p className="text-red-500 text-xs mt-1">{formErrors.semesterId}</p>}
           </div>
+
+          {formErrors.general && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded text-sm mb-4">
+              {formErrors.general}
+            </div>
+          )}
+
           <div className="flex space-x-3">
             <Button type="submit" variant="primary" disabled={formLoading}>
               {formLoading ? 'Saving...' : (editingItem ? 'Update' : 'Add') + ' Subject'}
@@ -1445,11 +1823,20 @@ const AdminDashboardContent: React.FC = () => {
           <div>
             <label className="form-label">Name</label>
             <Input value={departmentForm.name} onChange={(e) => setDepartmentForm({ ...departmentForm, name: e.target.value })} required />
+            {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
           </div>
           <div>
             <label className="form-label">Code</label>
             <Input value={departmentForm.code} onChange={(e) => setDepartmentForm({ ...departmentForm, code: e.target.value })} required />
+            {formErrors.code && <p className="text-red-500 text-xs mt-1">{formErrors.code}</p>}
           </div>
+
+          {formErrors.general && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded text-sm mb-4">
+              {formErrors.general}
+            </div>
+          )}
+
           <div className="flex space-x-3">
             <Button type="submit" variant="primary" disabled={formLoading}>
               {formLoading ? 'Saving...' : (editingItem ? 'Update' : 'Add') + ' Department'}
@@ -1498,6 +1885,10 @@ const AdminDashboardContent: React.FC = () => {
         ]}
         searchable
         pagination
+        manualPagination
+        totalItems={divisionTotal}
+        currentPage={divisionPage}
+        onPageChange={setDivisionPage}
         pageSize={10}
         emptyMessage="No divisions found"
       />
@@ -1511,11 +1902,20 @@ const AdminDashboardContent: React.FC = () => {
           <div>
             <label className="form-label">Name</label>
             <Input value={divisionForm.name} onChange={(e) => setDivisionForm({ ...divisionForm, name: e.target.value })} required />
+            {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
           </div>
           <div>
             <label className="form-label">Semester</label>
             <Select value={divisionForm.semesterId} onChange={(e) => setDivisionForm({ ...divisionForm, semesterId: e.target.value })} options={semesterOptions} placeholder="Select Semester" required />
+            {formErrors.semesterId && <p className="text-red-500 text-xs mt-1">{formErrors.semesterId}</p>}
           </div>
+
+          {formErrors.general && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded text-sm mb-4">
+              {formErrors.general}
+            </div>
+          )}
+
           <div className="flex space-x-3">
             <Button type="submit" variant="primary" disabled={formLoading}>
               {formLoading ? 'Saving...' : (editingItem ? 'Update' : 'Add') + ' Division'}
@@ -1718,11 +2118,11 @@ const AdminDashboardContent: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Students:</span>
-                <span className="font-semibold">{stats?.students || 0}</span>
+                <span className="font-semibold">{reportStats?.totalStudents || stats?.students || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Active This Semester:</span>
-                <span className="font-semibold">{Math.floor((stats?.students || 0) * 0.8)}</span>
+                <span className="text-gray-600">Active Groups:</span>
+                <span className="font-semibold">{reportStats?.totalDivisions || 0}</span>
               </div>
             </div>
           </Card.Body>
@@ -1736,11 +2136,11 @@ const AdminDashboardContent: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Faculty:</span>
-                <span className="font-semibold">{stats?.faculty || 0}</span>
+                <span className="font-semibold">{reportStats?.totalFaculty || stats?.faculty || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Active Faculty:</span>
-                <span className="font-semibold">{Math.floor((stats?.faculty || 0) * 0.9)}</span>
+                <span className="text-gray-600">Departments:</span>
+                <span className="font-semibold">{allDepartments.length || 0}</span>
               </div>
             </div>
           </Card.Body>
@@ -1754,11 +2154,11 @@ const AdminDashboardContent: React.FC = () => {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Subjects:</span>
-                <span className="font-semibold">{allSubjects.length || 0}</span>
+                <span className="font-semibold">{reportStats?.totalSubjects || allSubjects.length || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total Divisions:</span>
-                <span className="font-semibold">{allDivisions.length || 0}</span>
+                <span className="text-gray-600">Global Attendance:</span>
+                <span className="font-semibold text-green-600">{reportStats?.globalAttendance || 0}%</span>
               </div>
             </div>
           </Card.Body>
@@ -1808,6 +2208,68 @@ const AdminDashboardContent: React.FC = () => {
         {activeTab === 'faculty-assignment' && renderFacultyAssignment()}
         {activeTab === 'promotion' && renderPromotion()}
         {activeTab === 'reports' && renderReports()}
+        {activeTab === 'reports' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <Card.Header>
+                  <h3 className="text-lg font-medium text-gray-900">Department Distribution</h3>
+                </Card.Header>
+                <Card.Body>
+                  {reportStats?.departmentDistribution ? (
+                    <ComparisonPieChart 
+                      data={reportStats.departmentDistribution} 
+                      title="Students per Department" 
+                    />
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500">No department data available</div>
+                  )}
+                </Card.Body>
+              </Card>
+
+              <Card>
+                <Card.Header>
+                  <h3 className="text-lg font-medium text-gray-900">Enrollment Growth</h3>
+                </Card.Header>
+                <Card.Body>
+                  {reportStats?.enrollmentTrend ? (
+                    <TrendLineChart 
+                      data={reportStats.enrollmentTrend} 
+                      title="New Student Enrollments" 
+                    />
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500">No enrollment data available</div>
+                  )}
+                </Card.Body>
+              </Card>
+            </div>
+
+            <Card>
+              <Card.Header>
+                <h3 className="text-lg font-medium text-gray-900">Academic Performance</h3>
+              </Card.Header>
+              <Card.Body>
+                {reportStats?.academicPerformance && reportStats.academicPerformance.length > 0 ? (
+                  <DistributionBarChart 
+                    data={reportStats.academicPerformance} 
+                    title="Average Marks per Subject (Out of 20)" 
+                  />
+                ) : (
+                  <div className="h-64 flex items-center justify-center text-gray-500">No performance data available</div>
+                )}
+              </Card.Body>
+            </Card>
+          </div>
+        )}
+        {activeTab === 'chat' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-page-title">General Chat</h1>
+              <p className="text-body text-gray-600 mt-2">Chat with students and faculty</p>
+            </div>
+            <ChatComponent context="ADMIN" />
+          </div>
+        )}
       </div>
     </ModernLayout>
   );

@@ -30,6 +30,8 @@ interface ValidatedMark {
   marks: number;
 }
 
+import { NotificationService } from '../notification/notification.service';
+
 @Injectable()
 export class MarksService {
   private readonly DEFAULT_MAX_MARKS = 20;
@@ -37,7 +39,8 @@ export class MarksService {
 
   constructor(
     private prisma: PrismaService,
-    private academicContext: AcademicCoreService
+    private academicContext: AcademicCoreService,
+    private notificationService: NotificationService
   ) {}
 
   async uploadMarks(
@@ -131,6 +134,18 @@ export class MarksService {
 
     // Insert student marks
     await this.insertStudentMarks(uploadSession.id, validRecords);
+
+    // Notify students
+    await this.notificationService.createNotification({
+      title: 'Marks Uploaded',
+      message: `Marks for ${context.subject.name} have been uploaded.`,
+      type: 'MARKS' as any,
+      semesterId: semester,
+      departmentId: context.semester.departmentId,
+      divisionId: divisionId,
+      isForStudents: true,
+      isForFaculty: false,
+    });
 
     return this.createUploadResponse(uploadSession, validRecords, invalidRecords, context);
   }

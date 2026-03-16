@@ -31,13 +31,24 @@ interface MulterFile {
   path: string;
 }
 
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+
 @Controller('notices')
 @UseGuards(JwtAuthGuard)
 export class NoticesController {
   constructor(private readonly noticesService: NoticesService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/notices',
+      filename: (req, file, cb) => {
+        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+        cb(null, `${randomName}${extname(file.originalname)}`);
+      },
+    }),
+  }))
   async createNotice(
     @GetUser() user: any,
     @Body() createNoticeDto: CreateNoticeDto,

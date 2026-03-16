@@ -236,7 +236,7 @@ class AcademicService {
   }
 
   async getFacultyAssignments(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/faculty/assignments`, {
+    const response = await fetch(`${API_BASE_URL}/assignments/faculty`, {
       headers: this.getAuthHeaders(),
     });
 
@@ -248,7 +248,7 @@ class AcademicService {
   }
 
   async getFacultyNotices(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/faculty/notices`, {
+    const response = await fetch(`${API_BASE_URL}/notices/faculty`, {
       headers: this.getAuthHeaders(),
     });
 
@@ -260,7 +260,7 @@ class AcademicService {
   }
 
   async getStudentAssignments(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/student/assignments`, {
+    const response = await fetch(`${API_BASE_URL}/assignments/student`, {
       headers: this.getAuthHeaders(),
     });
 
@@ -272,7 +272,7 @@ class AcademicService {
   }
 
   async getStudentNotices(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/student/notices`, {
+    const response = await fetch(`${API_BASE_URL}/notices/student`, {
       headers: this.getAuthHeaders(),
     });
 
@@ -284,7 +284,7 @@ class AcademicService {
   }
 
   async getStudentAttendance(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/student/attendance`, {
+    const response = await fetch(`${API_BASE_URL}/attendance/student`, {
       headers: this.getAuthHeaders(),
     });
 
@@ -296,7 +296,7 @@ class AcademicService {
   }
 
   async getStudentMarks(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/student/marks`, {
+    const response = await fetch(`${API_BASE_URL}/marks/student`, {
       headers: this.getAuthHeaders(),
     });
 

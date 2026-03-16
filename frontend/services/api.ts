@@ -34,9 +34,23 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle major service failures (5xx) or network errors
+    if (!error.response || error.response.status >= 500) {
+      console.error('Critical Service Failure:', error);
+      // We can use window.dispatchEvent or a global state management tool
+      // to show the ErrorPage. For now, we'll log it specifically for the UI to catch.
+      if (typeof window !== 'undefined') {
+        const event = new CustomEvent('app-critical-error', { 
+          detail: { 
+            message: error.response?.data?.message || 'The server is currently unable to handle the request.',
+            status: error.response?.status || 'Network Error'
+          } 
+        });
+        window.dispatchEvent(event);
+      }
+    }
+    
     // Important: do NOT auto-clear auth state on a single 401 here.
-    // Some endpoints may return 401 transiently (race/back navigation), and clearing storage
-    // causes the user to appear "logged out" unexpectedly.
     return Promise.reject(error);
   }
 );

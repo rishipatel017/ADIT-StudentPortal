@@ -165,4 +165,3 @@ See `DEPLOYMENT_GUIDE.md` for deployment notes and production build steps.
 
 ## License
 
-Internal / educational project (add a license if you plan to open-source).

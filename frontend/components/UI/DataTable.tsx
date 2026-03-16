@@ -16,6 +16,10 @@ interface DataTableProps<T> {
   pageSize?: number;
   className?: string;
   emptyMessage?: string;
+  manualPagination?: boolean;
+  totalItems?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
 }
 
 function DataTable<T extends Record<string, any>>({
@@ -27,11 +31,24 @@ function DataTable<T extends Record<string, any>>({
   pageSize = 10,
   className = '',
   emptyMessage = 'No data available',
+  manualPagination = false,
+  totalItems = 0,
+  currentPage: externalPage,
+  onPageChange,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortColumn, setSortColumn] = useState<keyof T | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [internalPage, setInternalPage] = useState(1);
+  const currentPage = externalPage !== undefined ? externalPage : internalPage;
+
+  const handlePageChange = (page: number) => {
+    if (onPageChange) {
+      onPageChange(page);
+    } else {
+      setInternalPage(page);
+    }
+  };
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
@@ -68,13 +85,15 @@ function DataTable<T extends Record<string, any>>({
 
   // Paginate data
   const paginatedData = useMemo(() => {
-    if (!pagination || !Array.isArray(sortedData)) return sortedData || [];
+    if (!pagination || manualPagination || !Array.isArray(sortedData)) return sortedData || [];
 
     const startIndex = (currentPage - 1) * pageSize;
     return sortedData.slice(startIndex, startIndex + pageSize);
-  }, [sortedData, currentPage, pageSize, pagination]);
+  }, [sortedData, currentPage, pageSize, pagination, manualPagination]);
 
-  const totalPages = Math.ceil((sortedData?.length || 0) / pageSize);
+  const totalPages = manualPagination 
+    ? Math.ceil(totalItems / pageSize) 
+    : Math.ceil((sortedData?.length || 0) / pageSize);
 
   const handleSort = (column: keyof T) => {
     if (sortColumn === column) {
@@ -109,7 +128,7 @@ function DataTable<T extends Record<string, any>>({
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1);
+                handlePageChange(1);
               }}
               className="form-input pl-10"
             />
@@ -199,16 +218,26 @@ function DataTable<T extends Record<string, any>>({
           </div>
 
           {/* Pagination */}
-          {pagination && totalPages > 1 && Array.isArray(sortedData) && (
+          {pagination && totalPages > 1 && (manualPagination || Array.isArray(sortedData)) && (
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Showing {((currentPage - 1) * pageSize) + 1} to{' '}
-                {Math.min(currentPage * pageSize, sortedData.length)} of{' '}
-                {sortedData.length} results
+                {manualPagination ? (
+                  <>
+                    Showing {((currentPage - 1) * pageSize) + 1} to{' '}
+                    {Math.min(currentPage * pageSize, totalItems)} of{' '}
+                    {totalItems} results
+                  </>
+                ) : (
+                  <>
+                    Showing {((currentPage - 1) * pageSize) + 1} to{' '}
+                    {Math.min(currentPage * pageSize, sortedData.length)} of{' '}
+                    {sortedData.length} results
+                  </>
+                )}
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -218,7 +247,7 @@ function DataTable<T extends Record<string, any>>({
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
                   className="btn-secondary btn-sm"
                 >

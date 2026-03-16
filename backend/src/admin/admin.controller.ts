@@ -23,8 +23,16 @@ export class AdminController {
 
   // Student Management
   @Get('students')
-  async getAllStudents() {
-    return this.adminService.getAllStudents();
+  async getAllStudents(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAllStudents(
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+      search,
+    );
   }
 
   @Get('students/:id')
@@ -52,8 +60,16 @@ export class AdminController {
 
   // Faculty Management
   @Get('faculty')
-  async getAllFaculty() {
-    return this.adminService.getAllFaculty();
+  async getAllFaculty(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAllFaculty(
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+      search,
+    );
   }
 
   @Get('faculty/:id')
@@ -110,8 +126,16 @@ export class AdminController {
 
   // Division Management
   @Get('divisions')
-  async getAllDivisions() {
-    return this.adminService.getAllDivisions();
+  async getAllDivisions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAllDivisions(
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+      search,
+    );
   }
 
   @Get('divisions/:id')
@@ -139,8 +163,16 @@ export class AdminController {
 
   // Subject Management
   @Get('subjects')
-  async getAllSubjects() {
-    return this.adminService.getAllSubjects();
+  async getAllSubjects(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.adminService.getAllSubjects(
+      page ? parseInt(page) : undefined,
+      limit ? parseInt(limit) : undefined,
+      search,
+    );
   }
 
   @Get('subjects/:id')

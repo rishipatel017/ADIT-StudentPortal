@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../../contexts/AuthContext';
 import Icon from '../UI/Icon';
 
+import { NotificationBell } from './NotificationBell';
+
 interface LayoutProps {
   children: React.ReactNode;
   title?: string;
@@ -58,6 +60,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
         { id: 'faculty-assignment', label: 'Faculty Assignment', icon: 'assignments', href: '/dashboard/admin?tab=faculty-assignment' },
         { id: 'promotion', label: 'Promote Students', icon: 'reports', href: '/dashboard/admin?tab=promotion' },
         { id: 'reports', label: 'Reports', icon: 'reports', href: '/dashboard/admin?tab=reports' },
+        { id: 'chat', label: 'Chat', icon: 'chat', href: '/dashboard/admin?tab=chat' },
       ];
     }
 
@@ -72,6 +75,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
         { id: 'marks', label: 'Marks', icon: 'marks', href: '/dashboard/faculty?tab=marks' },
         { id: 'notices', label: 'Notices', icon: 'notices', href: '/dashboard/faculty?tab=notices' },
         { id: 'reports', label: 'Reports', icon: 'reports', href: '/dashboard/faculty?tab=reports' },
+        { id: 'chat', label: 'Chat', icon: 'chat', href: '/dashboard/faculty?tab=chat' },
       ];
     }
 
@@ -83,6 +87,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
         { id: 'assignments', label: 'Assignments', icon: 'assignments', href: '/dashboard/student?tab=assignments' },
         { id: 'marks', label: 'My Marks', icon: 'marks', href: '/dashboard/student?tab=marks' },
         { id: 'notices', label: 'Notices', icon: 'notices', href: '/dashboard/student?tab=notices' },
+        { id: 'chat', label: 'Chat', icon: 'chat', href: '/dashboard/student?tab=chat' },
         { id: 'profile', label: 'Profile', icon: 'settings', href: '/dashboard/student?tab=profile' },
       ];
     }
@@ -98,7 +103,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="mobile-menu-overlay"
           onClick={() => setSidebarOpen(false)}
         />
@@ -108,10 +113,11 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
       <div className={`mobile-sidebar ${sidebarOpen ? '' : 'mobile-sidebar-closed'}`}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ADIT</span>
+            <img src="/assets/adit.jpg?v=1" alt="ADIT Logo" className="w-10 h-10 object-contain rounded" />
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-blue-700 leading-none">ADIT</span>
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Campus ERP</span>
             </div>
-            <span className="text-lg font-semibold text-gray-900">Campus ERP</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -131,11 +137,10 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
                 router.push(item.href);
                 setSidebarOpen(false);
               }}
-              className={`sidebar-item w-full ${
-                activeItem?.id === item.id
-                  ? 'sidebar-item-active'
-                  : 'sidebar-item-inactive'
-              }`}
+              className={`sidebar-item w-full ${activeItem?.id === item.id
+                ? 'sidebar-item-active'
+                : 'sidebar-item-inactive'
+                }`}
             >
               <span className="mr-3">
                 <Icon name={item.icon} size={20} />
@@ -143,37 +148,37 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
               {item.label}
             </button>
           ))}
-            {user?.role !== 'STUDENT' && (
-              <div className="pt-4 mt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    router.push('/dashboard/profile');
-                    setSidebarOpen(false);
-                  }}
-                  className={`sidebar-item w-full ${
-                    router.pathname.includes('profile')
-                      ? 'sidebar-item-active'
-                      : 'sidebar-item-inactive'
+          {user?.role !== 'STUDENT' && (
+            <div className="pt-4 mt-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  router.push('/dashboard/profile');
+                  setSidebarOpen(false);
+                }}
+                className={`sidebar-item w-full ${router.pathname.includes('profile')
+                  ? 'sidebar-item-active'
+                  : 'sidebar-item-inactive'
                   }`}
-                >
-                  <span className="mr-3">
-                    <Icon name="settings" size={20} />
-                  </span>
-                  Profile
-                </button>
-              </div>
-            )}
-          </nav>
+              >
+                <span className="mr-3">
+                  <Icon name="settings" size={20} />
+                </span>
+                Profile
+              </button>
+            </div>
+          )}
+        </nav>
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:z-50 lg:block">
         <div className="sidebar">
-          <div className="flex items-center space-x-3 p-6 border-b border-gray-200">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ADIT</span>
+          <div className="flex items-center space-x-3 p-6 border-b border-gray-200 bg-gray-50/50">
+            <img src="/assets/adit.jpg?v=1" alt="ADIT Logo" className="w-12 h-12 object-contain rounded-lg shadow-sm bg-white p-1" />
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-blue-700 tracking-tight leading-none">ADIT</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mt-1">Campus ERP</span>
             </div>
-            <span className="text-lg font-semibold text-gray-900">Campus ERP</span>
           </div>
 
           <nav className="p-4 space-y-1">
@@ -181,15 +186,14 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
               <button
                 key={item.id}
                 onClick={() => router.push(item.href)}
-                className={`sidebar-item w-full ${
-                  activeItem?.id === item.id
-                    ? 'sidebar-item-active'
-                    : 'sidebar-item-inactive'
-                }`}
+                className={`sidebar-item w-full ${activeItem?.id === item.id
+                  ? 'sidebar-item-active'
+                  : 'sidebar-item-inactive'
+                  }`}
               >
                 <span className="mr-3">
-                <Icon name={item.icon} size={20} />
-              </span>
+                  <Icon name={item.icon} size={20} />
+                </span>
                 {item.label}
               </button>
             ))}
@@ -197,11 +201,10 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
               <div className="pt-4 mt-4 border-t border-gray-200">
                 <button
                   onClick={() => router.push('/dashboard/profile')}
-                  className={`sidebar-item w-full ${
-                    router.pathname.includes('profile')
-                      ? 'sidebar-item-active'
-                      : 'sidebar-item-inactive'
-                  }`}
+                  className={`sidebar-item w-full ${router.pathname.includes('profile')
+                    ? 'sidebar-item-active'
+                    : 'sidebar-item-inactive'
+                    }`}
                 >
                   <span className="mr-3">
                     <Icon name="settings" size={20} />
@@ -239,6 +242,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
 
               {/* User menu */}
               <div className="flex items-center space-x-4">
+                <NotificationBell />
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">{displayName}</p>

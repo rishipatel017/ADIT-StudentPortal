@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,137 +8,139 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      UserRole
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Security fields
+  id                   Int            @id @default(autoincrement())
+  email                String         @unique
+  password             String
+  role                 UserRole
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
   lastLogin            DateTime?
-  failedLoginAttempts  Int        @default(0)
+  failedLoginAttempts  Int            @default(0)
   accountLockedUntil   DateTime?
   passwordResetToken   String?
   passwordResetExpires DateTime?
-
-  student   Student?
-  faculty   Faculty?
-  admin     Admin?
-  activityLogs ActivityLog[]
-  apiTokens ApiToken[]
-  notices   Notice[]
+  activityLogs         ActivityLog[]
+  admin                Admin?
+  apiTokens            ApiToken[]
+  chatMessages         ChatMessage[]
+  faculty              Faculty?
+  notices              Notice[]
+  notifications        Notification[]
+  student              Student?
 
   @@map("users")
 }
 
 model Admin {
   id     Int    @id @default(autoincrement())
-  userId  Int    @unique
+  userId Int    @unique
   name   String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("admins")
 }
 
-// Add Department model before Semester
 model Department {
-  id        Int      @id @default(autoincrement())
-  name      String
-  code      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  semesters Semester[]
-  faculty   Faculty[]
-  students  Student[]
-  notices   Notice[]
+  id            Int            @id @default(autoincrement())
+  name          String
+  code          String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+  chatMessages  ChatMessage[]
+  faculty       Faculty[]
+  notices       Notice[]
+  notifications Notification[]
+  semesters     Semester[]
+  students      Student[]
 
   @@map("departments")
-  deletedAt DateTime?
 }
 
 model Semester {
-  id           Int      @id @default(autoincrement())
-  number       Int      // 1-8
-  departmentId Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime? // Soft delete
-
-  department   Department @relation(fields:[departmentId], references:[id], onDelete: Cascade)
-  subjects     Subject[]
-  divisions    Division[]
-  students     Student[]
+  id                 Int                 @id @default(autoincrement())
+  number             Int
+  departmentId       Int
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  assignments        Assignment[]
   attendanceSessions AttendanceSession[]
-  assignments  Assignment[]
-  marksUploads MarksUpload[]
-  notices      Notice[]
+  chatMessages       ChatMessage[]
+  divisions          Division[]
+  marksUploads       MarksUpload[]
+  notices            Notice[]
+  notifications      Notification[]
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  students           Student[]
+  subjects           Subject[]
 
   @@unique([number, departmentId])
+  @@index([departmentId], map: "semesters_departmentId_fkey")
   @@map("semesters")
 }
 
 model Subject {
-  id         Int         @id @default(autoincrement())
-  name       String
-  code       String
-  type       String      // CORE, OPEN_ELECTIVE, PROFESSIONAL_ELECTIVE, MANDATORY
-  credits    Int         @default(4)
-  semesterId Int
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-
-  semester   Semester    @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  assignments Assignment[]
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  code               String
+  type               String
+  credits            Int                 @default(4)
+  semesterId         Int
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  assignments        Assignment[]
   attendanceSessions AttendanceSession[]
-  facultySubjects FacultySubject[]
-  marksUploads MarksUpload[]
+  facultySubjects    FacultySubject[]
+  marksUploads       MarksUpload[]
+  semester           Semester            @relation(fields: [semesterId], references: [id], onDelete: Cascade)
 
   @@unique([code, semesterId])
+  @@index([semesterId], map: "subjects_semesterId_fkey")
   @@map("subjects")
 }
 
 model Division {
-  id         Int         @id @default(autoincrement())
-  name       String
-  semesterId Int
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-
-  semester   Semester    @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  students   Student[]   
-  attendanceSessions AttendanceSession[]
-  facultySubjects FacultySubject[]
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  semesterId          Int
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   assignmentDivisions AssignmentDivision[]
-  marksUploads MarksUpload[]
-  notices     Notice[]
+  attendanceSessions  AttendanceSession[]
+  chatMessages        ChatMessage[]
+  semester            Semester             @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  facultySubjects     FacultySubject[]
+  marksUploads        MarksUpload[]
+  notices             Notice[]
+  notifications       Notification[]
+  students            Student[]
 
   @@unique([name, semesterId])
+  @@index([semesterId], map: "divisions_semesterId_fkey")
   @@map("divisions")
 }
 
 model Student {
-  id           Int         @id @default(autoincrement())
-  enrollmentNo String     @unique
-  name         String
-  email        String
-  status       StudentStatus @default(ACTIVE)
-  departmentId Int
-  divisionId   Int
-  semesterId   Int
-  userId       Int         @unique
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  deletedAt    DateTime?   // Soft delete
-
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department   Department  @relation(fields: [departmentId], references: [id])
-  division     Division    @relation(fields: [divisionId], references: [id])
-  semester     Semester    @relation(fields: [semesterId], references: [id])
-  submissions  AssignmentSubmission[]
+  id                Int                    @id @default(autoincrement())
+  enrollmentNo      String                 @unique
+  name              String
+  email             String
+  status            StudentStatus          @default(ACTIVE)
+  departmentId      Int
+  divisionId        Int
+  semesterId        Int
+  userId            Int                    @unique
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  deletedAt         DateTime?
+  submissions       AssignmentSubmission[]
   attendanceRecords AttendanceRecord[]
-  marks        StudentMarks[]
+  marks             StudentMarks[]
+  department        Department             @relation(fields: [departmentId], references: [id])
+  division          Division               @relation(fields: [divisionId], references: [id])
+  semester          Semester               @relation(fields: [semesterId], references: [id])
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([departmentId])
   @@index([semesterId])
@@ -150,83 +149,82 @@ model Student {
 }
 
 model Faculty {
-  id                   Int         @id @default(autoincrement())
-  name                 String
-  email                String
-  designation          String
-  qualification        String
-  phone                String?     // Added phone field
-  joiningDate          DateTime
-  pastExperienceYears  Int         @default(0)
-  departmentId         Int
-  userId               Int         @unique
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-  deletedAt            DateTime?   // Soft delete
-
-  department           Department  @relation(fields: [departmentId], references: [id])
-  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subjects             FacultySubject[]
-  attendanceSessions   AttendanceSession[]
-  assignments          Assignment[]
-  marksUploads         MarksUpload[]
+  id                  Int                 @id @default(autoincrement())
+  name                String
+  email               String
+  designation         String
+  qualification       String
+  phone               String?
+  joiningDate         DateTime
+  pastExperienceYears Int                 @default(0)
+  departmentId        Int
+  userId              Int                 @unique
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  deletedAt           DateTime?
+  assignments         Assignment[]
+  attendanceSessions  AttendanceSession[]
+  department          Department          @relation(fields: [departmentId], references: [id])
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjects            FacultySubject[]
+  marksUploads        MarksUpload[]
 
   @@index([departmentId])
   @@map("faculty")
 }
 
 model FacultySubject {
-  id         Int     @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   facultyId  Int
   subjectId  Int
   divisionId Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
   faculty    Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
   subject    Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
 
   @@unique([facultyId, subjectId, divisionId])
+  @@index([divisionId], map: "faculty_subjects_divisionId_fkey")
+  @@index([subjectId], map: "faculty_subjects_subjectId_fkey")
   @@map("faculty_subjects")
 }
 
 model AttendanceSession {
-  id           Int      @id @default(autoincrement())
-  semesterId   Int
-  subjectId    Int
-  divisionId   Int
-  facultyId    Int
-  lectureNo    Int
-  topic        String?
-  lectureDate  DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          Int                @id @default(autoincrement())
+  semesterId  Int
+  subjectId   Int
+  divisionId  Int
+  facultyId   Int
+  lectureNo   Int
+  topic       String?
+  lectureDate DateTime
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  records     AttendanceRecord[]
+  division    Division           @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  faculty     Faculty            @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  semester    Semester           @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  subject     Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  semester     Semester  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  subject      Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  division     Division  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
-  faculty      Faculty   @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  records      AttendanceRecord[]
-
+  @@unique([subjectId, divisionId, lectureDate, lectureNo])
   @@index([semesterId, subjectId, divisionId])
   @@index([facultyId])
   @@index([lectureDate])
   @@index([subjectId, lectureDate])
-  @@unique([subjectId, divisionId, lectureDate, lectureNo])
+  @@index([divisionId], map: "attendance_sessions_divisionId_fkey")
   @@map("attendance_sessions")
 }
 
 model AttendanceRecord {
-  id        Int  @id @default(autoincrement())
+  id        Int               @id @default(autoincrement())
   sessionId Int
   studentId Int
   status    Boolean
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
   session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student   Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, studentId])
   @@index([sessionId])
@@ -235,24 +233,22 @@ model AttendanceRecord {
 }
 
 model Assignment {
-  id           Int         @id @default(autoincrement())
-  title        String
-  description  String?
-  attachment   String?     // PDF/Image path
-  dueDate      DateTime
-  semesterId   Int
-
-  subjectId    Int
-  facultyId    Int
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  deletedAt    DateTime?   // Soft delete
-
-  semester     Semester    @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  subject      Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  faculty      Faculty     @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  divisions    AssignmentDivision[]
-  submissions  AssignmentSubmission[]
+  id          Int                    @id @default(autoincrement())
+  title       String
+  description String?
+  attachment  String?
+  dueDate     DateTime
+  semesterId  Int
+  subjectId   Int
+  facultyId   Int
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  deletedAt   DateTime?
+  divisions   AssignmentDivision[]
+  submissions AssignmentSubmission[]
+  faculty     Faculty                @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  semester    Semester               @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  subject     Subject                @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@index([subjectId])
   @@index([facultyId])
@@ -261,33 +257,31 @@ model Assignment {
 }
 
 model AssignmentDivision {
-  id           Int @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   assignmentId Int
   divisionId   Int
-  createdAt    DateTime @default(now())
-
+  createdAt    DateTime   @default(now())
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   division     Division   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, divisionId])
+  @@index([divisionId], map: "assignment_divisions_divisionId_fkey")
   @@map("assignment_divisions")
 }
 
 model AssignmentSubmission {
-  id            Int      @id @default(autoincrement())
-  assignmentId  Int
-  studentId     Int
-
-  filePath      String
-  originalName  String
-  fileSize      Int
-  checksum      String?  // File integrity checksum
-  compressed    Boolean  @default(true)
-  submittedAt   DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id           Int        @id @default(autoincrement())
+  assignmentId Int
+  studentId    Int
+  filePath     String
+  originalName String
+  fileSize     Int
+  checksum     String?
+  compressed   Boolean    @default(true)
+  submittedAt  DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, studentId])
   @@index([assignmentId])
@@ -297,80 +291,153 @@ model AssignmentSubmission {
 }
 
 model MarksUpload {
-  id          Int @id @default(autoincrement())
+  id         Int            @id @default(autoincrement())
+  semesterId Int
+  subjectId  Int
+  divisionId Int
+  facultyId  Int
+  maxMarks   Int            @default(20)
+  uploadedAt DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  deletedAt  DateTime?
+  division   Division       @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  faculty    Faculty        @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  semester   Semester       @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  subject    Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  marks      StudentMarks[]
 
-  semesterId  Int
-  subjectId   Int
-  divisionId  Int
-  facultyId   Int
-  maxMarks    Int @default(20)
-  uploadedAt  DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime? // Soft delete
-
-  semester    Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  subject     Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  division    Division   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
-  faculty     Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  marks       StudentMarks[]
-
+  @@unique([subjectId, divisionId, semesterId])
   @@index([semesterId, subjectId, divisionId])
   @@index([facultyId])
-  @@unique([subjectId, divisionId, semesterId])
+  @@index([divisionId], map: "marks_upload_divisionId_fkey")
   @@map("marks_upload")
 }
 
 model StudentMarks {
-  id            Int @id @default(autoincrement())
-
+  id            Int         @id @default(autoincrement())
   uploadId      Int
   studentId     Int
   marksObtained Float
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   upload        MarksUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  student       Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([uploadId, studentId])
   @@index([studentId])
   @@index([uploadId])
   @@map("student_marks")
 }
+
 model Notice {
-  id           Int      @id @default(autoincrement())
-
-  title        String
-  content      String
-  attachment   String?
-
-  createdById  Int
+  id            Int              @id @default(autoincrement())
+  title         String
+  content       String
+  attachment    String?
+  createdById   Int
   createdByRole NoticeAuthorRole
-
-  departmentId Int?
-  semesterId   Int?
-  divisionId   Int?
-
-  isForFaculty Boolean  @default(false)
-  isForStudents Boolean @default(true)
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime? // Soft delete
-
-  createdBy    User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  semester     Semester?  @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  division     Division?  @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  departmentId  Int?
+  semesterId    Int?
+  divisionId    Int?
+  isForFaculty  Boolean          @default(false)
+  isForStudents Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+  createdBy     User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  department    Department?      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  division      Division?        @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  semester      Semester?        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
 
   @@index([semesterId])
   @@index([divisionId])
   @@index([createdAt])
   @@index([createdById])
+  @@index([departmentId], map: "notices_departmentId_fkey")
   @@map("notices")
 }
 
-// Add enums before models
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  action    String
+  entity    String
+  entityId  Int?
+  details   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model ApiToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  name      String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  lastUsed  DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("api_tokens")
+}
+
+model Notification {
+  id            Int              @id @default(autoincrement())
+  title         String
+  message       String
+  type          NotificationType
+  userId        Int?
+  departmentId  Int?
+  semesterId    Int?
+  divisionId    Int?
+  isForFaculty  Boolean          @default(false)
+  isForStudents Boolean          @default(false)
+  isRead        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  department    Department?      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  division      Division?        @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  semester      Semester?        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  user          User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([departmentId])
+  @@index([semesterId])
+  @@index([divisionId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model ChatMessage {
+  id           Int         @id @default(autoincrement())
+  message      String      @db.Text
+  senderId     Int
+  senderRole   UserRole
+  departmentId Int?
+  semesterId   Int?
+  divisionId   Int?
+  createdAt    DateTime    @default(now())
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  division     Division?   @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  semester     Semester?   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  sender       User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([departmentId, semesterId, divisionId])
+  @@index([createdAt])
+  @@index([divisionId], map: "chat_messages_divisionId_fkey")
+  @@index([semesterId], map: "chat_messages_semesterId_fkey")
+  @@index([senderId], map: "chat_messages_senderId_fkey")
+  @@map("chat_messages")
+}
+
 enum UserRole {
   ADMIN
   FACULTY
@@ -387,38 +454,10 @@ enum StudentStatus {
   PASSED_OUT
 }
 
-// Activity logging for security auditing
-model ActivityLog {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  action    String   // e.g., "created", "updated", "deleted", "uploaded"
-  entity    String   // e.g., "assignment", "marks", "attendance"
-  entityId  Int?     // ID of the affected entity
-  details   String?  // Additional details in JSON format
-  createdAt DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([entity])
-  @@index([createdAt])
-  @@map("activity_logs")
-}
-
-// API tokens for mobile app access
-model ApiToken {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  token     String   @unique
-  name      String   // Token name for identification
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  lastUsed  DateTime?
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([token])
-  @@index([expiresAt])
-  @@map("api_tokens")
+enum NotificationType {
+  GENERAL
+  NOTICE
+  MARKS
+  CHAT
+  ASSIGNMENT
 }

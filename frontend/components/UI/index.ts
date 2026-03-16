@@ -8,6 +8,7 @@ export { default as StatCard } from './StatCard';
 export { default as VirtualizedTable } from './VirtualizedTable';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as Modal } from './Modal';
+export { default as ErrorPage } from './ErrorPage';
 export { 
   NotificationProvider, 
   useNotifications, 

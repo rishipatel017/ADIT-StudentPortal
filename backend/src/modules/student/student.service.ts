@@ -974,8 +974,16 @@ export class StudentService {
 
     if (!student) throw new NotFoundException('Student not found');
 
-    return this.prisma.studentMarks.findMany({
-      where: { studentId: student.id },
+    // Scope to the student's own division and semester to avoid duplicate
+    // rows when the same subject has uploads across multiple divisions.
+    const allMarks = await this.prisma.studentMarks.findMany({
+      where: {
+        studentId: student.id,
+        upload: {
+          divisionId: student.divisionId,
+          semesterId: student.semesterId,
+        },
+      },
       include: {
         upload: {
           include: {
@@ -983,6 +991,20 @@ export class StudentService {
           },
         },
       },
+      orderBy: {
+        upload: {
+          uploadedAt: 'desc',
+        },
+      },
+    });
+
+    // Deduplicate by subjectId – keep only the most recent upload per subject.
+    const seen = new Set<number>();
+    return allMarks.filter((m) => {
+      const subjectId = m.upload.subjectId;
+      if (seen.has(subjectId)) return false;
+      seen.add(subjectId);
+      return true;
     });
   }
 

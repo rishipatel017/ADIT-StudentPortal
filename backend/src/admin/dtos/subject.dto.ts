@@ -1,13 +1,16 @@
-import { IsString, IsOptional, IsNumber, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt } from 'class-validator';
 
 export class CreateSubjectDto {
   @IsString()
+  @IsNotEmpty({ message: 'Subject name is required' })
   name: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Subject code is required' })
   code: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'Subject type is required' })
   type: string;
 
   @IsOptional()
@@ -15,20 +18,24 @@ export class CreateSubjectDto {
   credits?: number;
 
   @IsInt()
+  @IsNotEmpty({ message: 'Semester ID is required' })
   semesterId: number;
 }
 
 export class UpdateSubjectDto {
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   name?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   code?: string;
 
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   type?: string;
 
   @IsOptional()
@@ -37,5 +44,6 @@ export class UpdateSubjectDto {
 
   @IsOptional()
   @IsInt()
+  @IsNotEmpty()
   semesterId?: number;
 }

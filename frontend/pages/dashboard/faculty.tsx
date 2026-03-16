@@ -3,10 +3,12 @@ import { useRouter } from 'next/router';
 import ModernLayout from '../../components/Layout/ModernLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, Card, DataTable, StatCard, Input, Select, Modal } from '../../components/UI';
+import { TrendLineChart, DistributionBarChart } from '../../components/UI/AnalyticsCharts';
 import { useSemesters, useDivisions, useSubjects } from '../../hooks/useAcademicData';
-import { academicService, DashboardStats, Student } from '../../services/academicService';
-import { AuthGuard } from '../../components/Auth/AuthGuard';
+import { academicService, DashboardStats, Student, FacultySubjectsBySemester } from '../../services/academicService';
 import api from '../../services/api';
+import { AuthGuard } from '../../components/Auth/AuthGuard';
+import { ChatComponent } from '../../components/Chat/ChatComponent';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -58,10 +60,11 @@ interface FacultySubjectItem {
   division: { id: number; name: string; semesterId?: number };
 }
 
-interface FacultySubjectsBySemester {
-  semester: { id: number; number: number };
-  subjects: FacultySubjectItem[];
-}
+// FacultySubjectsBySemester interface is now imported from academicService
+// interface FacultySubjectsBySemester {
+//   semester: { id: number; number: number };
+//   subjects: FacultySubjectItem[];
+// }
 
 const safeDate = (value: any): string => {
   if (!value) return '-';
@@ -114,6 +117,9 @@ const FacultyDashboardContent: React.FC = () => {
   const [marksUploads, setMarksUploads] = useState<MarksUploadRow[]>([]);
   const [marksLoading, setMarksLoading] = useState(false);
   const [marksError, setMarksError] = useState<string | null>(null);
+  const [selectedMarksDetails, setSelectedMarksDetails] = useState<any | null>(null);
+  const [isMarksModalOpen, setIsMarksModalOpen] = useState(false);
+  const [reportStats, setReportStats] = useState<any>(null);
 
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState<string | null>(null);
@@ -123,12 +129,60 @@ const FacultyDashboardContent: React.FC = () => {
   const [attendanceHistoryError, setAttendanceHistoryError] = useState<string | null>(null);
 
   // Academic data hooks
-  const { semesters, options: semesterOptions } = useSemesters();
+  const { options: allSemesterOptions } = useSemesters();
   const [selectedSemester, setSelectedSemester] = useState<number | undefined>();
-  const { divisions, options: divisionOptions } = useDivisions(selectedSemester);
   const [selectedDivision, setSelectedDivision] = useState<number | undefined>();
-  const { subjects, options: subjectOptions } = useSubjects(selectedSemester);
   const [selectedSubject, setSelectedSubject] = useState<number | undefined>();
+  
+  // Filter Semester Options to only those assigned to faculty, sorted by number
+  const semesterOptions = allSemesterOptions
+    .filter(opt => facultySubjects.some(sg => sg.semester.id === Number(opt.value)))
+    .sort((a, b) => Number(a.label.replace('Semester ', '')) - Number(b.label.replace('Semester ', '')));
+
+  // Helper functions for options - now sorted
+  const getSubjectOptionsForSemester = (semId: number | undefined) => {
+    if (!semId) return [];
+    const group = facultySubjects.find(sg => sg.semester.id === Number(semId));
+    return (group?.subjects?.reduce((acc: any[], curr) => {
+      if (!acc.some(s => s.value === curr.subject.id)) {
+        acc.push({
+          value: curr.subject.id,
+          label: `${curr.subject.name} (${curr.subject.code})`
+        });
+      }
+      return acc;
+    }, []) || []).sort((a, b) => a.label.localeCompare(b.label));
+  };
+
+  const getDivisionOptionsForSubject = (semId: number | undefined, subId: number | undefined) => {
+    if (!semId || !subId) return [];
+    const group = facultySubjects.find(sg => sg.semester.id === Number(semId));
+    return (group?.subjects
+      ?.filter(s => s.subject.id === Number(subId))
+      .map(s => ({
+        value: s.division.id,
+        label: s.division.name
+      })) || []).sort((a, b) => a.label.localeCompare(b.label));
+  };
+
+  const getDivisionOptionsForSemester = (semId: number | undefined) => {
+    if (!semId) return [];
+    const group = facultySubjects.find(sg => sg.semester.id === Number(semId));
+    if (!group) return [];
+    const divisions = group.subjects.reduce((acc: any[], curr) => {
+      if (!acc.some(d => d.value === curr.division.id)) {
+        acc.push({
+          value: curr.division.id,
+          label: curr.division.name
+        });
+      }
+      return acc;
+    }, []);
+    return divisions.sort((a, b) => a.label.localeCompare(b.label));
+  };
+
+  const subjectOptions = getSubjectOptionsForSemester(selectedSemester);
+  const divisionOptions = getDivisionOptionsForSubject(selectedSemester, selectedSubject);
 
   // Attendance form states
   const [topicCovered, setTopicCovered] = useState('');
@@ -141,6 +195,7 @@ const FacultyDashboardContent: React.FC = () => {
   const [assignmentForm, setAssignmentForm] = useState({
     title: '',
     description: '',
+    semesterId: '', // Added semesterId
     subjectId: '',
     divisionId: '',
     dueDate: ''
@@ -176,14 +231,11 @@ const FacultyDashboardContent: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    const tab = typeof router.query.tab === 'string' ? router.query.tab : undefined;
-    if (!tab) {
-      setActiveTab('overview');
-      return;
-    }
-    const allowed = ['overview', 'profile', 'subjects', 'attendance', 'students', 'assignments', 'marks', 'notices', 'reports'];
+    if (!router.isReady) return;
+    const tab = typeof router.query.tab === 'string' ? router.query.tab : 'overview';
+    const allowed = ['overview', 'subjects', 'assignments', 'attendance', 'students', 'marks', 'notices', 'reports', 'chat', 'profile'];
     setActiveTab(allowed.includes(tab) ? tab : 'overview');
-  }, [router.query.tab]);
+  }, [router.isReady, router.query.tab]);
 
   const fetchFacultyData = async () => {
     try {
@@ -194,7 +246,27 @@ const FacultyDashboardContent: React.FC = () => {
       setStats(statsData);
 
       const facultySubjectsData = await api.get('/academic/faculty-subjects').then(r => r.data).catch(() => []);
-      setFacultySubjects(Array.isArray(facultySubjectsData) ? facultySubjectsData : []);
+      
+      // Group flat list into FacultySubjectsBySemester structure
+      const grouped: FacultySubjectsBySemester[] = [];
+      if (Array.isArray(facultySubjectsData)) {
+        facultySubjectsData.forEach((item: any) => {
+          let group = grouped.find(g => g.semester.id === item.semester.id);
+          if (!group) {
+            group = { semester: item.semester, subjects: [] };
+            grouped.push(group);
+          }
+          group.subjects.push({
+            subject: item.subject,
+            division: item.division
+          });
+        });
+      }
+      
+      // Sort groups by semester number
+      grouped.sort((a, b) => a.semester.number - b.semester.number);
+      
+      setFacultySubjects(grouped);
 
       const profile = await api.get('/faculty/profile').then(r => r.data).catch(() => null);
       setFacultyProfile(profile);
@@ -318,14 +390,15 @@ const FacultyDashboardContent: React.FC = () => {
     e.preventDefault();
     try {
       const attendanceData = {
-        semesterId: selectedSemester,
+        semester: selectedSemester,
         subjectId: selectedSubject,
         divisionId: selectedDivision,
-        topicCovered,
-        lectureNumber: parseInt(lectureNumber),
-        attendance: Object.entries(attendanceRecords).map(([studentId, isPresent]) => ({
+        topic: topicCovered,
+        lectureNo: parseInt(lectureNumber),
+        lectureDate: new Date().toISOString(),
+        students: Object.entries(attendanceRecords).map(([studentId, isPresent]) => ({
           studentId: parseInt(studentId),
-          status: isPresent
+          status: isPresent ? 1 : 0
         }))
       };
 
@@ -338,10 +411,15 @@ const FacultyDashboardContent: React.FC = () => {
       setAttendanceRecords({});
       setStudents([]);
       
+      // Refresh history
+      if (selectedSemester && selectedSubject && selectedDivision) {
+        fetchAttendanceHistory();
+      }
+      
       alert('Attendance submitted successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting attendance:', error);
-      alert('Failed to submit attendance');
+      alert(error?.response?.data?.message || error?.message || 'Failed to submit attendance');
     }
   };
 
@@ -408,10 +486,28 @@ const FacultyDashboardContent: React.FC = () => {
         },
       });
       setMarksUploads(Array.isArray(res.data) ? res.data : []);
+      
+      // Also fetch report stats here for the reports tab
+      const statsRes = await api.get('/reports/summary');
+      setReportStats(statsRes.data);
     } catch (e: any) {
       console.error('Failed to load marks uploads:', e);
       setMarksUploads([]);
       setMarksError(e?.response?.data?.message || e?.message || 'Failed to load marks');
+    } finally {
+      setMarksLoading(false);
+    }
+  };
+  
+  const handleViewMarksDetails = async (uploadId: number) => {
+    try {
+      setMarksLoading(true);
+      const res = await api.get(`/marks/details/${uploadId}`);
+      setSelectedMarksDetails(res.data);
+      setIsMarksModalOpen(true);
+    } catch (e: any) {
+      console.error('Failed to load marks details:', e);
+      alert('Failed to load marks details');
     } finally {
       setMarksLoading(false);
     }
@@ -526,17 +622,24 @@ const FacultyDashboardContent: React.FC = () => {
   const handleAssignmentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (!selectedSemester) {
-        alert('Please select semester');
+      if (!assignmentForm.title || !assignmentForm.semesterId || !assignmentForm.subjectId || !assignmentForm.divisionId || !assignmentForm.dueDate) {
+        alert('Please fill in all required fields');
         return;
       }
+
+      const semesterId = parseInt(assignmentForm.semesterId);
       const subjectId = parseInt(assignmentForm.subjectId);
       const divisionId = parseInt(assignmentForm.divisionId);
 
+      if (isNaN(semesterId) || isNaN(subjectId) || isNaN(divisionId)) {
+        alert('Invalid selection data');
+        return;
+      }
+
       const form = new FormData();
       form.append('title', assignmentForm.title);
-      form.append('description', assignmentForm.description);
-      form.append('semester', String(selectedSemester));
+      form.append('description', assignmentForm.description || '');
+      form.append('semester', String(semesterId));
       form.append('subjectId', String(subjectId));
       form.append('divisionIds', JSON.stringify([divisionId]));
       form.append('dueDate', assignmentForm.dueDate);
@@ -544,12 +647,13 @@ const FacultyDashboardContent: React.FC = () => {
         form.append('file', assignmentFile);
       }
 
-      await api.post('/assignments/create', form, {
+      const response = await api.post('/assignments/create', form, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
+      console.log('Assignment created:', response.data);
       const refreshed = await academicService.getFacultyAssignments().catch(() => []);
       setAssignments(refreshed || []);
       
@@ -557,6 +661,7 @@ const FacultyDashboardContent: React.FC = () => {
       setAssignmentForm({
         title: '',
         description: '',
+        semesterId: '',
         subjectId: '',
         divisionId: '',
         dueDate: ''
@@ -564,9 +669,10 @@ const FacultyDashboardContent: React.FC = () => {
       setAssignmentFile(null);
       
       alert('Assignment created successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating assignment:', error);
-      alert('Failed to create assignment');
+      const message = error?.response?.data?.message || 'Failed to create assignment';
+      alert(message);
     }
   };
 
@@ -603,11 +709,18 @@ const FacultyDashboardContent: React.FC = () => {
       key: 'subject' as keyof Assignment,
       label: 'Subject',
       sortable: true,
+      render: (value: any) => typeof value === 'object' ? value?.name : value,
     },
     {
       key: 'division' as keyof Assignment,
       label: 'Division',
       sortable: true,
+      render: (_: any, row: any) => {
+        if (row.divisions && row.divisions.length > 0) {
+          return row.divisions.map((d: any) => d.division.name).join(', ');
+        }
+        return row.division?.name || row.division || '-';
+      }
     },
     {
       key: 'dueDate' as keyof Assignment,
@@ -884,9 +997,10 @@ const FacultyDashboardContent: React.FC = () => {
                       <div key={semesterGroup.semester.id} className="border border-gray-200 rounded-lg p-4">
                         <h4 className="font-medium text-gray-900 mb-2">Semester {semesterGroup.semester.number}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {semesterGroup.subjects.map((item, index) => (
-                            <div key={index} className="text-sm text-gray-600">
-                              {item.subject.code ? `${item.subject.code} - ` : ''}{item.subject.name} - Division {item.division.name}
+                          {semesterGroup.subjects?.map((item: any, index: number) => (
+                            <div key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100">
+                              <span className="font-medium text-blue-700">{item.subject.code ? `${item.subject.code} - ` : ''}{item.subject.name}</span>
+                              <div className="text-xs text-gray-500">Division: {item.division.name}</div>
                             </div>
                           ))}
                         </div>
@@ -947,7 +1061,7 @@ const FacultyDashboardContent: React.FC = () => {
                           Semester {semesterGroup.semester.number}
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {semesterGroup.subjects.map((item, index) => (
+                          {semesterGroup.subjects?.map((item: any, index: number) => (
                             <div key={index} className="text-sm text-gray-600">
                               {item.subject.name} - {item.division.name}
                             </div>
@@ -1094,7 +1208,7 @@ const FacultyDashboardContent: React.FC = () => {
                   columns={[
                     { key: 'lectureDate', label: 'Date', render: (value: any) => safeDate(value) },
                     { key: 'lectureNo', label: 'Lecture', sortable: true },
-                    { key: 'topicCovered', label: 'Topic' },
+                    { key: 'topic', label: 'Topic' },
                   ]}
                   searchable
                   pagination
@@ -1211,13 +1325,23 @@ const FacultyDashboardContent: React.FC = () => {
                       required
                     />
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <Select
+                        label="Semester"
+                        value={assignmentForm.semesterId}
+                        onChange={(e) => setAssignmentForm({...assignmentForm, semesterId: e.target.value, subjectId: '', divisionId: ''})}
+                        options={semesterOptions}
+                        placeholder="Select Semester"
+                        required
+                      />
+
                       <Select
                         label="Subject"
                         value={assignmentForm.subjectId}
-                        onChange={(e) => setAssignmentForm({...assignmentForm, subjectId: e.target.value})}
-                        options={subjectOptions}
+                        onChange={(e) => setAssignmentForm({...assignmentForm, subjectId: e.target.value, divisionId: ''})}
+                        options={getSubjectOptionsForSemester(Number(assignmentForm.semesterId))}
                         placeholder="Select Subject"
+                        disabled={!assignmentForm.semesterId}
                         required
                       />
                       
@@ -1225,8 +1349,9 @@ const FacultyDashboardContent: React.FC = () => {
                         label="Division"
                         value={assignmentForm.divisionId}
                         onChange={(e) => setAssignmentForm({...assignmentForm, divisionId: e.target.value})}
-                        options={divisionOptions}
+                        options={getDivisionOptionsForSubject(Number(assignmentForm.semesterId), Number(assignmentForm.subjectId))}
                         placeholder="Select Division"
+                        disabled={!assignmentForm.subjectId}
                         required
                       />
                       
@@ -1324,9 +1449,9 @@ const FacultyDashboardContent: React.FC = () => {
                         label="Division (optional)"
                         value={noticeForm.divisionId || ''}
                         onChange={(e) => setNoticeForm({ ...noticeForm, divisionId: e.target.value ? Number(e.target.value) : '' })}
-                        options={divisionOptions}
+                        options={getDivisionOptionsForSemester(Number(noticeForm.semester))}
                         placeholder="All divisions"
-                        disabled={!selectedSemester}
+                        disabled={!noticeForm.semester}
                       />
                     </div>
 
@@ -1417,6 +1542,21 @@ const FacultyDashboardContent: React.FC = () => {
           </div>
         )}
 
+        {activeTab === 'chat' && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Department Chat</h1>
+              <p className="text-gray-600 mt-1">Chat with students and faculty</p>
+            </div>
+            {facultyProfile && (
+              <ChatComponent
+                context="FACULTY"
+                defaultDepartmentId={facultyProfile.departmentId}
+              />
+            )}
+          </div>
+        )}
+
         {activeTab === 'marks' && (
           <div className="space-y-6">
             <div>
@@ -1504,6 +1644,19 @@ const FacultyDashboardContent: React.FC = () => {
                     { key: 'division', label: 'Division', render: (_: any, row: any) => row?.division?.name || '-' },
                     { key: 'subject', label: 'Subject', render: (_: any, row: any) => row?.subject?.name || '-' },
                     { key: 'createdAt', label: 'Uploaded On', render: (value: any) => safeDate(value) },
+                    { 
+                      key: 'actions' as any, 
+                      label: 'Actions', 
+                      render: (_: any, row: any) => (
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          onClick={() => handleViewMarksDetails(row.id)}
+                        >
+                          View Details
+                        </Button>
+                      ) 
+                    },
                   ]}
                   searchable
                   pagination
@@ -1512,6 +1665,43 @@ const FacultyDashboardContent: React.FC = () => {
                 />
               </Card.Body>
             </Card>
+
+            <Modal
+              isOpen={isMarksModalOpen}
+              onClose={() => {
+                setIsMarksModalOpen(false);
+                setSelectedMarksDetails(null);
+              }}
+              title={`Marks Details - ${selectedMarksDetails?.subject?.name || ''}`}
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="text-gray-500">Semester:</span> {selectedMarksDetails?.semesterId}</div>
+                  <div><span className="text-gray-500">Division:</span> {selectedMarksDetails?.division?.name}</div>
+                </div>
+                
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Enrollment</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Marks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {selectedMarksDetails?.marks?.map((mark: any, index: number) => (
+                        <tr key={index}>
+                          <td className="px-4 py-2 text-sm text-gray-900">{mark.student.enrollmentNo}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{mark.student.name}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">{mark.marksObtained}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Modal>
           </div>
         )}
 
@@ -1523,9 +1713,43 @@ const FacultyDashboardContent: React.FC = () => {
               <p className="text-body text-gray-600 mt-2">Generate and export reports</p>
             </div>
 
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <Card.Header>
+                  <h3 className="text-lg font-medium text-gray-900">Attendance Trends</h3>
+                </Card.Header>
+                <Card.Body>
+                  {reportStats?.attendanceTrend ? (
+                    <TrendLineChart 
+                      data={reportStats.attendanceTrend} 
+                      title="Attendance % per Session" 
+                    />
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500">No attendance data available</div>
+                  )}
+                </Card.Body>
+              </Card>
+
+              <Card>
+                <Card.Header>
+                  <h3 className="text-lg font-medium text-gray-900">Marks Distribution</h3>
+                </Card.Header>
+                <Card.Body>
+                  {reportStats?.marksDistribution ? (
+                    <DistributionBarChart 
+                      data={reportStats.marksDistribution} 
+                      title="Students per Marks Range" 
+                    />
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500">No marks data available</div>
+                  )}
+                </Card.Body>
+              </Card>
+            </div>
+
             <Card>
-              <Card.Header>
-                <h3 className="text-section-title">Attendance Report Export</h3>
+              <Card.Header className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">Detailed Attendance Report</h3>
               </Card.Header>
               <Card.Body>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

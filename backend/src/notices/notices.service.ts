@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AcademicCoreService, StudentContext } from '../academic/academic-core.service';
 import { CreateNoticeDto } from './dtos/create-notice.dto';
 import { UpdateNoticeDto } from './dtos/update-notice.dto';
+import { NotificationService } from '../notification/notification.service';
 
 interface MulterFile {
   fieldname: string;
@@ -19,7 +20,8 @@ interface MulterFile {
 export class NoticesService {
   constructor(
     private prisma: PrismaService,
-    private academicContext: AcademicCoreService
+    private academicContext: AcademicCoreService,
+    private notificationService: NotificationService
   ) {}
 
   async createNotice(userId: number, userRole: string, createNoticeDto: CreateNoticeDto, file?: MulterFile) {
@@ -46,6 +48,16 @@ export class NoticesService {
         isForFaculty: isForFaculty || false,
         isForStudents: isForStudents !== false, // Default to true
       },
+    });
+
+    await this.notificationService.createNotification({
+      title: 'New Notice',
+      message: title,
+      type: 'NOTICE' as any,
+      semesterId: semester || null,
+      divisionId: divisionId || null,
+      isForFaculty: isForFaculty || false,
+      isForStudents: isForStudents !== false, // Default to true
     });
 
     return notice;

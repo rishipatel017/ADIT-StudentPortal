@@ -10,6 +10,7 @@ import api from '../../services/api';
 import { AuthGuard } from '../../components/Auth/AuthGuard';
 import { useStudentStats, useAssignments, useNotices, useAttendance } from '../../hooks/useDashboardData';
 import { academicService, Subject } from '../../services/academicService';
+import { ChatComponent } from '../../components/Chat/ChatComponent';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -162,7 +163,7 @@ const StudentDashboardContent: React.FC = () => {
       return;
     }
 
-    const allowed = ['overview', 'subjects', 'assignments', 'attendance', 'marks', 'notices', 'profile'];
+    const allowed = ['overview', 'subjects', 'assignments', 'attendance', 'marks', 'notices', 'chat', 'profile'];
     setActiveTab(allowed.includes(tab) ? tab : 'overview');
   }, [router.query.tab]);
 
@@ -210,6 +211,33 @@ const StudentDashboardContent: React.FC = () => {
     }
   }, [user]);
 
+  const computeGrade = (percentage: number): string => {
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 80) return 'A';
+    if (percentage >= 70) return 'B+';
+    if (percentage >= 60) return 'B';
+    if (percentage >= 50) return 'C';
+    if (percentage >= 40) return 'D';
+    return 'F';
+  };
+
+  const normalizeMarks = (rawMarks: any[]): Mark[] => {
+    return rawMarks.map((m: any) => {
+      const obtained = Number(m?.marksObtained ?? 0);
+      const max = Number(m?.upload?.maxMarks ?? 0);
+      const percentage = max > 0 ? (obtained / max) * 100 : 0;
+      return {
+        id: m?.id ?? 0,
+        subject: m?.upload?.subject?.name || m?.upload?.subject?.code || 'N/A',
+        assignment: 'Assessment',
+        marksObtained: obtained,
+        maxMarks: max,
+        grade: m?.grade || computeGrade(percentage),
+        date: m?.upload?.uploadedAt || m?.createdAt || '',
+      };
+    });
+  };
+
   const fetchStudentData = async () => {
     try {
       setLoading(true);
@@ -231,7 +259,8 @@ const StudentDashboardContent: React.FC = () => {
         name: profile?.name,
         email: profile?.email,
       });
-      setMarks(normalizeArray((studentMarks as any)?.data));
+      const rawMarks = normalizeArray((studentMarks as any)?.data ?? studentMarks);
+      setMarks(normalizeMarks(rawMarks));
     } catch (err: any) {
       console.error('Failed to fetch student data:', err);
       setError(err.message || 'Failed to load student data');
@@ -985,14 +1014,14 @@ const StudentDashboardContent: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
               <StatCard
                 title="Average Score"
-                value={`${marks.length ? Math.round(marks.reduce((acc, m) => acc + (m.marksObtained / m.maxMarks) * 100, 0) / marks.length) : 0}%`}
+                value={`${marks.length ? Math.round(marks.reduce((acc, m) => acc + (m.maxMarks > 0 ? (m.marksObtained / m.maxMarks) * 100 : 0), 0) / marks.length) : 0}%`}
                 subtitle="Overall Performance"
                 icon={<span className="text-3xl">📈</span>}
                 variant="primary"
               />
               <StatCard
                 title="Highest Score"
-                value={`${marks.length ? Math.max(...marks.map(m => (m.marksObtained / m.maxMarks) * 100)) : 0}%`}
+                value={`${marks.length ? Math.round(Math.max(...marks.map(m => m.maxMarks > 0 ? (m.marksObtained / m.maxMarks) * 100 : 0))) : 0}%`}
                 subtitle="Best Performance"
                 icon={<span className="text-3xl">🏆</span>}
                 variant="success"
@@ -1078,6 +1107,24 @@ const StudentDashboardContent: React.FC = () => {
                 ) : null}
               </div>
             </Modal>
+          </div>
+        );
+
+      case 'chat':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Department Chat</h1>
+              <p className="text-gray-600 mt-1">Chat with students and faculty in your department</p>
+            </div>
+            {studentData && (
+              <ChatComponent
+                context="STUDENT"
+                defaultDepartmentId={studentData.departmentId}
+                defaultSemesterId={studentData.semesterId}
+                defaultDivisionId={studentData.divisionId}
+              />
+            )}
           </div>
         );
 

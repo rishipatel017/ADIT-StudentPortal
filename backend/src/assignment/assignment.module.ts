@@ -4,9 +4,10 @@ import { AssignmentController } from './assignment.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ServicesModule } from '../services/services.module';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-  imports: [PrismaModule, ServicesModule],
+  imports: [PrismaModule, ServicesModule, NotificationModule],
   controllers: [AssignmentController],
   providers: [AssignmentService, PrismaService],
   exports: [AssignmentService],

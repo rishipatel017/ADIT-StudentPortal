@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface AcademicContext {
-  semester: { id: number; number: number };
+  semester: { id: number; number: number; departmentId: number };
   subject: { id: number; name: string; code: string; type: string; credits: number };
   division: { id: number; name: string };
   students: Array<{ id: number; name: string; enrollmentNo: string; email: string }>;
@@ -32,7 +32,7 @@ export class AcademicCoreService {
 
   async loadAcademicContext(semesterId: number, subjectId: number, divisionId: number, facultyId?: number): Promise<AcademicContext> {
     const [semester, subject, division] = await Promise.all([
-      this.prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true, number: true } }),
+      this.prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true, number: true, departmentId: true } }),
       this.prisma.subject.findUnique({ where: { id: subjectId }, select: { id: true, name: true, code: true, type: true, credits: true } }),
       this.prisma.division.findUnique({ where: { id: divisionId }, select: { id: true, name: true } })
     ]);

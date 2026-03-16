@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsInt, IsArray, IsDateString } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateAssignmentDto {
   @IsString()
@@ -9,15 +9,21 @@ export class CreateAssignmentDto {
   @IsString()
   description?: string;
 
+  @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   semester: number;
 
+  @Transform(({ value }) => parseInt(value, 10))
   @IsInt()
   subjectId: number;
 
   @Transform(({ value }) => {
     if (typeof value === 'string') {
-      return value.split(',').map(v => parseInt(v.trim(), 10));
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed.map(v => parseInt(v, 10));
+      } catch (e) {}
+      return value.split(',').map(v => parseInt(v.trim(), 10)).filter(v => !isNaN(v));
     }
     if (Array.isArray(value)) {
       return value.map(v => parseInt(String(v), 10));

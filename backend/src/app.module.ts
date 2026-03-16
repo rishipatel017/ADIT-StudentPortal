@@ -16,6 +16,8 @@ import { DivisionModule } from './division/division.module';
 import { AdminModule } from './admin/admin.module';
 import { AcademicModule } from './academic/academic.module';
 import { DepartmentModule } from './department/department.module';
+import { ChatModule } from './chat/chat.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { DepartmentModule } from './department/department.module';
     DepartmentModule,
     MarksModule,
     NoticesModule,
+    ChatModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}
