@@ -131,9 +131,11 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
 
         <nav className="p-4 space-y-1">
           {navigationItems.map((item) => (
-            <button
+            <a
               key={item.id}
-              onClick={() => {
+              href={item.href}
+              onClick={(e) => {
+                e.preventDefault();
                 router.push(item.href);
                 setSidebarOpen(false);
               }}
@@ -146,12 +148,15 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
                 <Icon name={item.icon} size={20} />
               </span>
               {item.label}
-            </button>
+            </a>
           ))}
           {user?.role !== 'STUDENT' && (
             <div className="pt-4 mt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
+              <a
+                key="mobile-profile"
+                href="/dashboard/profile"
+                onClick={(e) => {
+                  e.preventDefault();
                   router.push('/dashboard/profile');
                   setSidebarOpen(false);
                 }}
@@ -164,7 +169,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
                   <Icon name="settings" size={20} />
                 </span>
                 Profile
-              </button>
+              </a>
             </div>
           )}
         </nav>
@@ -183,9 +188,13 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
 
           <nav className="p-4 space-y-1">
             {navigationItems.map((item) => (
-              <button
+              <a
                 key={item.id}
-                onClick={() => router.push(item.href)}
+                href={item.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push(item.href);
+                }}
                 className={`sidebar-item w-full ${activeItem?.id === item.id
                   ? 'sidebar-item-active'
                   : 'sidebar-item-inactive'
@@ -195,12 +204,17 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
                   <Icon name={item.icon} size={20} />
                 </span>
                 {item.label}
-              </button>
+              </a>
             ))}
             {user?.role !== 'STUDENT' && (
               <div className="pt-4 mt-4 border-t border-gray-200">
-                <button
-                  onClick={() => router.push('/dashboard/profile')}
+                <a
+                  key="desktop-profile"
+                  href="/dashboard/profile"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push('/dashboard/profile');
+                  }}
                   className={`sidebar-item w-full ${router.pathname.includes('profile')
                     ? 'sidebar-item-active'
                     : 'sidebar-item-inactive'
@@ -210,7 +224,7 @@ const ModernLayout: React.FC<LayoutProps> = ({ children, title = 'ADIT Campus ER
                     <Icon name="settings" size={20} />
                   </span>
                   Profile
-                </button>
+                </a>
               </div>
             )}
           </nav>

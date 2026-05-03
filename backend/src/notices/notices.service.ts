@@ -229,7 +229,7 @@ export class NoticesService {
     const whereClause: any = {};
 
     if (filters.semester !== undefined) {
-      whereClause.semester = filters.semester;
+      whereClause.semesterId = filters.semester;
     }
     if (filters.divisionId !== undefined) {
       whereClause.divisionId = filters.divisionId;

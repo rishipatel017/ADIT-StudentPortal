@@ -88,6 +88,30 @@ export class NoticesController {
     return this.noticesService.getAllNotices(user.id, user.role);
   }
 
+  @Get('filter/target')
+  async getNoticesByTarget(
+    @Query('semester') semester?: number,
+    @Query('divisionId') divisionId?: number,
+    @Query('isForFaculty') isForFaculty?: boolean,
+    @Query('isForStudents') isForStudents?: boolean,
+  ) {
+    return this.noticesService.getNoticesByTarget({
+      semester,
+      divisionId,
+      isForFaculty,
+      isForStudents,
+    });
+  }
+
+  @Get('statistics')
+  async getNoticeStatistics(@GetUser() user: any) {
+    if (user.role !== 'ADMIN' && user.role !== 'FACULTY') {
+      throw new BadRequestException('Only admin and faculty can view statistics');
+    }
+
+    return this.noticesService.getNoticeStatistics(user.id, user.role);
+  }
+
   @Get(':id')
   async getNoticeById(
     @Param('id', ParseIntPipe) id: number,
@@ -119,29 +143,5 @@ export class NoticesController {
     }
 
     return this.noticesService.deleteNotice(id, user.id, user.role);
-  }
-
-  @Get('filter/target')
-  async getNoticesByTarget(
-    @Query('semester') semester?: number,
-    @Query('divisionId') divisionId?: number,
-    @Query('isForFaculty') isForFaculty?: boolean,
-    @Query('isForStudents') isForStudents?: boolean,
-  ) {
-    return this.noticesService.getNoticesByTarget({
-      semester,
-      divisionId,
-      isForFaculty,
-      isForStudents,
-    });
-  }
-
-  @Get('statistics')
-  async getNoticeStatistics(@GetUser() user: any) {
-    if (user.role !== 'ADMIN' && user.role !== 'FACULTY') {
-      throw new BadRequestException('Only admin and faculty can view statistics');
-    }
-
-    return this.noticesService.getNoticeStatistics(user.id, user.role);
   }
 }

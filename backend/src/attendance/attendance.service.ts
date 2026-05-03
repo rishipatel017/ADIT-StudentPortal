@@ -147,7 +147,7 @@ export class AttendanceService {
     });
 
     if (!session) {
-      throw new Error('Attendance session not found or access denied');
+      throw new NotFoundException('Attendance session not found or access denied');
     }
 
     // Update attendance records
@@ -178,7 +178,7 @@ export class AttendanceService {
     });
 
     if (!session) {
-      throw new Error('Attendance session not found or access denied');
+      throw new NotFoundException('Attendance session not found or access denied');
     }
 
     // Delete records first (due to foreign key constraint)
@@ -214,7 +214,7 @@ export class AttendanceService {
     });
 
     if (!session) {
-      throw new Error('Attendance session not found');
+      throw new NotFoundException('Attendance session not found');
     }
 
     return {
@@ -335,7 +335,7 @@ export class AttendanceService {
     let totalPresent = 0;
 
     const studentStats = Array.from(studentAttendance.values()).map(stat => {
-      const percentage = Math.round((stat.presentCount / stat.totalLectures) * 100);
+      const percentage = Math.round((stat.presentCount / totalLectures) * 100);
       totalPresent += stat.presentCount;
       
       return {
@@ -371,7 +371,7 @@ export class AttendanceService {
     });
 
     if (!student) {
-      throw new Error('Student not found');
+      throw new NotFoundException('Student not found');
     }
 
     const whereClause: any = {

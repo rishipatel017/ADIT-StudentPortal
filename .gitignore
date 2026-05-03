@@ -1,4 +1,3 @@
-
 # Node / dependencies
 **/node_modules/
 **/.pnp
@@ -29,15 +28,18 @@ pnpm-debug.log*
 # Uploads / user-generated content
 backend/uploads/
 uploads/
+**/public/uploads/
 
 # Prisma
 backend/node_modules/.prisma/
+**/prisma/migrations/
 
 # Test / coverage
 **/coverage/
 **/.nyc_output/
 **/playwright-report/
 **/test-results/
+**/.test-results/
 
 # IDE / OS
 .DS_Store
@@ -51,3 +53,8 @@ Desktop.ini
 
 # Docker / misc
 **/*.pid
+**/*.dockerignore
+
+# Build artifacts
+**/build/
+**/dist/

@@ -1,0 +1,17 @@
+{
+  "name": "campushub-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "build:all": "npm run build --prefix backend && npm run build --prefix frontend",
+    "backend:dev": "npm run start:dev --prefix backend",
+    "frontend:dev": "npm run dev --prefix frontend",
+    "start:dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "prisma:generate": "npm run prisma:generate --prefix backend",
+    "prisma:setup": "npm run db:setup --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.1"
+  }
+}

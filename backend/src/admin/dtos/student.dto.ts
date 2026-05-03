@@ -25,6 +25,10 @@ export class CreateStudentDto {
   @IsInt()
   @IsNotEmpty({ message: 'Semester ID is required' })
   semesterId: number;
+
+  @IsInt()
+  @IsOptional()
+  departmentId?: number;
 }
 
 export class UpdateStudentDto {

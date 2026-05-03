@@ -1,167 +1,112 @@
-# ADIT Campus ERP (ADIT_CampusHub)
+# 🎓 CampusHub ERP
 
-A role-based ERP system for managing an IT department’s academic workflows.
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/rishipatel017/ADIT-StudentPortal)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 
-- **Admin**: manage academic structure and users
-- **Faculty**: attendance, assignments, marks, notices
-- **Student**: view subjects, attendance, assignments, marks, notices
+**CampusHub** is a premium, full-stack Academic & Administrative Management System designed to streamline educational workflows. Built with a focus on performance, scalability, and high-end aesthetics, it provides a centralized platform for Students, Faculty, and Administrators.
 
-## Tech Stack
+![CampusHub Logo](assets/logo.png)
 
-- **Frontend**: Next.js (React 18, TypeScript), Tailwind CSS
-- **Backend**: NestJS (TypeScript), Prisma ORM
-- **Database**: MySQL (Prisma datasource is `mysql`)
-- **Auth**: JWT (role-based access control)
+---
 
-## Monorepo Structure
+## 🚀 Core Features
 
-- `backend/` NestJS API + Prisma
-- `frontend/` Next.js web app
-- `docker-compose.yml` local containers (includes Postgres service; see notes below)
+### 🏛️ Administrator Portal
+*   **Centralized Control**: Manage the entire academic structure including Departments, Semesters, and Divisions.
+*   **User Management**: Seamless onboarding and management of Student and Faculty profiles.
+*   **Data Analytics**: Real-time dashboard statistics for institutional oversight.
+*   **Academic Logistics**: Link faculty to specific subjects and divisions with precision.
 
-## Prerequisites
+### 👨‍🏫 Faculty Workspace
+*   **Attendance Tracking**: Effortless digital attendance management for every lecture.
+*   **Marks Upload Engine**: High-speed marks entry with CSV template support for bulk uploads.
+*   **Assignment Hub**: Create, distribute, and evaluate student assignments digitally.
+*   **Communication**: Broadcast notices to specific divisions or the entire department.
 
-- Node.js 18+ recommended
-- npm
-- A running database server
-  - **Recommended**: MySQL (matches `backend/prisma/schema.prisma`)
+### 🎓 Student Experience
+*   **Personal Dashboard**: View upcoming deadlines, latest marks, and attendance stats.
+*   **Submission Portal**: Securely submit assignments and track evaluation status.
+*   **Real-time Alerts**: Instant notifications for new notices, marks, and academic updates.
+*   **Integrated Chat**: Direct communication channels for academic collaboration.
 
-## Environment Variables
+---
 
-### Backend (`backend/.env`)
+## 💻 Technology Stack
 
-Create `backend/.env` using `backend/.env.example`.
+### Backend Infrastructure
+*   **NestJS**: Progressive Node.js framework for efficient, reliable and scalable server-side applications.
+*   **Prisma ORM**: Next-generation Node.js and TypeScript ORM for robust database management.
+*   **MySQL**: Relational database for structured academic data.
+*   **JWT & Bcrypt**: Secure authentication and industry-standard password hashing.
 
-Key variables:
+### Frontend Experience
+*   **Next.js 14**: The React framework for production-grade web applications.
+*   **Tailwind CSS**: Utility-first CSS framework for bespoke, premium designs.
+*   **Lucide Icons**: Beautifully crafted open-source icons for modern UIs.
+*   **Axios**: Promise-based HTTP client for seamless API integration.
 
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-- `PORT` (default `3001`)
-- `UPLOAD_DIR` (default `./uploads`)
+![Dashboard Preview](assets/dashboard.png)
 
-### Frontend (`frontend/.env.local`)
+---
 
-Example:
+## 🛠️ Getting Started
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
+### Prerequisites
+*   [Node.js](https://nodejs.org/) (v18.0 or higher)
+*   [MySQL](https://www.mysql.com/) (v8.0 or higher)
+*   [Docker](https://www.docker.com/) (Optional, for containerized deployment)
 
-## Local Development (Recommended)
+### Installation
 
-### 1) Install dependencies
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/rishipatel017/ADIT-StudentPortal.git
+   cd ADIT-StudentPortal
+   ```
+
+2. **Backend Setup**
+   ```bash
+   cd backend
+   npm install
+   cp .env.example .env
+   # Update .env with your database credentials
+   npx prisma migrate dev
+   npx prisma db seed
+   npm run start:dev
+   ```
+
+3. **Frontend Setup**
+   ```bash
+   cd ../frontend
+   npm install
+   cp .env.example .env.local
+   npm run dev
+   ```
+
+---
+
+## 📦 Deployment with Docker
+
+CampusHub is fully containerized for easy deployment.
 
 ```bash
-# Backend
-cd backend
-npm install
-
-# Frontend
-cd ../frontend
-npm install
+docker-compose up --build
 ```
 
-### 2) Configure database
-
-Update `backend/.env`:
-
-- For MySQL:
-  - `DATABASE_URL="mysql://USER:PASSWORD@localhost:3306/DATABASE_NAME"`
-
-### 3) Prisma setup (migrate + seed)
-
+For optimized production environments, use the optimized configuration:
 ```bash
-cd backend
-npm run db:setup
+docker-compose -f docker-compose.optimized.yml up -d
 ```
 
-### 4) Run the apps
+---
 
-```bash
-# Backend
-cd backend
-npm run start:dev
-```
+## 📜 License
 
-Backend:
-- `http://localhost:3001`
-- Swagger (if enabled): `http://localhost:3001/api`
+Distributed under the MIT License. See `LICENSE` for more information.
 
-```bash
-# Frontend
-cd frontend
-npm run dev
-```
+---
 
-Frontend:
-- `http://localhost:3000`
-
-## Default Seed Credentials
-
-After `npm run db:setup` (seed):
-
-- **Admin**
-  - Email: `admin@itcollege.edu`
-  - Password: `admin123`
-
-- **Faculty**
-  - Email: `hod@itcollege.edu`
-  - Password: `faculty123`
-
-- **Student**
-  - Email: `rahul@itcollege.edu`
-  - Password: `student123`
-
-## Attachments / Uploads
-
-File uploads (assignments/notices) are stored under `uploads/` and are served by the backend at:
-
-- `GET /uploads/...`
-
-In development, keep the uploads folder outside Git (already ignored in `.gitignore`).
-
-## Docker
-
-This repo includes:
-
-- `docker-compose.yml`
-- `docker-compose.optimized.yml`
-
-Important note:
-
-- `backend/prisma/schema.prisma` is configured for **MySQL**.
-- `docker-compose.yml` provisions **PostgreSQL**.
-
-If you plan to use Docker for local/dev/prod, align these by either:
-
-- switching Prisma datasource to `postgresql`, **or**
-- changing the compose file to run MySQL.
-
-## Scripts
-
-### Backend
-
-From `backend/`:
-
-- `npm run start:dev` development server
-- `npm run build` build
-- `npm run start:prod` run production build
-- `npm run db:setup` generate + migrate + seed
-- `npm run prisma:studio` Prisma UI
-
-### Frontend
-
-From `frontend/`:
-
-- `npm run dev` development server
-- `npm run build` build
-- `npm run start` start production server
-- `npm run test:e2e` Playwright E2E tests
-
-## Deployment
-
-See `DEPLOYMENT_GUIDE.md` for deployment notes and production build steps.
-
-## License
-
+<p align="center">
+  Developed with ❤️ for Academic Excellence.
+</p>

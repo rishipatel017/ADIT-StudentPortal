@@ -278,15 +278,7 @@ export class AdminService {
       this.prisma.student.count({ where }),
     ]);
 
-    return {
-      data: students,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return students;
   }
 
   async getStudentById(id: number) {
@@ -371,7 +363,7 @@ export class AdminService {
   }
 
   async createStudent(createStudentDto: CreateStudentDto) {
-    const { email, password, name, enrollmentNo, divisionId, semesterId } = createStudentDto;
+    const { email, password, name, enrollmentNo, divisionId, semesterId, departmentId } = createStudentDto;
 
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
@@ -406,7 +398,7 @@ export class AdminService {
             enrollmentNo,
             email,
             department: {
-              connect: { id: 1 } // Default to IT department
+              connect: { id: departmentId || 1 } // Default to IT department
             },
             division: {
               connect: { id: divisionId }
@@ -417,7 +409,7 @@ export class AdminService {
             user: {
               create: {
                 email,
-                password: await bcrypt.hash('student123', 12),
+                password: hashedPassword,
                 role: 'STUDENT'
               }
             }
@@ -626,15 +618,7 @@ export class AdminService {
       this.prisma.faculty.count({ where }),
     ]);
 
-    return {
-      data: faculty,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return faculty;
   }
 
   async getFacultyById(id: number) {
@@ -681,7 +665,7 @@ export class AdminService {
   }
 
   async createFaculty(createFacultyDto: CreateFacultyDto) {
-    const { email, password, name, designation, qualification, phone, joiningDate, pastExperienceYears } = createFacultyDto;
+    const { email, password, name, designation, qualification, phone, joiningDate, pastExperienceYears, departmentId } = createFacultyDto;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -706,7 +690,7 @@ export class AdminService {
             joiningDate: joiningDate ? new Date(joiningDate) : new Date(),
             pastExperienceYears: pastExperienceYears || 0,
             department: {
-              connect: { id: 1 } // Default to IT department
+              connect: { id: departmentId || 1 } // Default to IT department
             },
             user: {
               create: {
@@ -857,6 +841,9 @@ export class AdminService {
   }
 
   async getSemesterById(id: number) {
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid semester ID');
+    }
     const semester = await this.prisma.semester.findUnique({
       where: { id },
       include: {
@@ -897,7 +884,7 @@ export class AdminService {
   }
 
   async createSemester(createSemesterDto: CreateSemesterDto) {
-    const { number } = createSemesterDto;
+    const { number, departmentId } = createSemesterDto;
 
     if (number < 1 || number > 8) {
       throw new BadRequestException('Semester number must be between 1 and 8');
@@ -919,7 +906,7 @@ export class AdminService {
         data: { 
           number,
           department: {
-            connect: { id: 1 } // Default to IT department
+            connect: { id: departmentId || 1 } // Default to IT department
           }
         },
       });
@@ -977,6 +964,9 @@ export class AdminService {
   }
 
   async deleteSemester(id: number) {
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid semester ID');
+    }
     const semester = await this.prisma.semester.findUnique({
       where: { id },
     });
@@ -1059,15 +1049,7 @@ export class AdminService {
       this.prisma.subject.count({ where }),
     ]);
 
-    return {
-      data: subjects,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return subjects;
   }
 
   async getSubjectById(id: number) {
@@ -1314,15 +1296,7 @@ export class AdminService {
       this.prisma.division.count({ where }),
     ]);
 
-    return {
-      data: divisions,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return divisions;
   }
 
   async getDivisionById(id: number) {
@@ -1471,6 +1445,9 @@ export class AdminService {
   }
 
   async deleteDivision(id: number) {
+    if (isNaN(id)) {
+      throw new BadRequestException('Invalid division ID');
+    }
     const division = await this.prisma.division.findUnique({
       where: { id },
       include: {

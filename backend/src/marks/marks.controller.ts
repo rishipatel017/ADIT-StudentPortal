@@ -58,7 +58,15 @@ export class MarksController {
       throw new BadRequestException('Only CSV files are allowed');
     }
 
-    const result = await this.marksService.uploadMarks(user.id, createMarksUploadDto, file);
+    // Merge query params into DTO for service
+    const mergedDto = {
+      ...createMarksUploadDto,
+      semester,
+      subjectId,
+      divisionId,
+    };
+
+    const result = await this.marksService.uploadMarks(user.id, mergedDto, file);
 
     if ('exists' in result) {
       return {

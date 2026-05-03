@@ -4,7 +4,6 @@ import { AcademicCoreService, AcademicContext, StudentContext } from '../academi
 import { CreateMarksUploadDto } from './dtos/create-marks-upload.dto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as csv from 'csv-parser';
 
 interface MulterFile {
   fieldname: string;
@@ -118,6 +117,18 @@ export class MarksService {
       // Insert new marks
       await this.insertStudentMarks(updatedUpload.id, validRecords);
       
+      // Notify students of update
+      await this.notificationService.createNotification({
+        title: 'Marks Updated',
+        message: `Marks for ${context.subject.name} have been updated.`,
+        type: 'MARKS' as any,
+        semesterId: semester,
+        departmentId: context.semester.departmentId,
+        divisionId: divisionId,
+        isForStudents: true,
+        isForFaculty: false,
+      });
+
       return this.createUploadResponse(updatedUpload, validRecords, invalidRecords, context);
     }
 
@@ -190,6 +201,25 @@ export class MarksService {
       // Insert new marks
       await this.insertStudentMarks(uploadId, validRecords, prisma);
     });
+
+    // Notify students
+    const upload = await this.prisma.marksUpload.findUnique({
+      where: { id: uploadId },
+      include: { subject: true, semester: true },
+    });
+
+    if (upload) {
+      await this.notificationService.createNotification({
+        title: 'Marks Updated',
+        message: `Marks for ${upload.subject.name} have been updated.`,
+        type: 'MARKS' as any,
+        semesterId: upload.semesterId,
+        departmentId: upload.semester.departmentId,
+        divisionId: upload.divisionId,
+        isForStudents: true,
+        isForFaculty: false,
+      });
+    }
 
     return {
       success: true,

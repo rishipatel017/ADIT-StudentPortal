@@ -33,6 +33,10 @@ export class CreateFacultyDto {
   @IsOptional()
   @IsNumber()
   pastExperienceYears?: number;
+
+  @IsInt()
+  @IsOptional()
+  departmentId?: number;
 }
 
 export class UpdateFacultyDto {

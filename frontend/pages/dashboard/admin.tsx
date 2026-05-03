@@ -337,15 +337,17 @@ const AdminDashboardContent: React.FC = () => {
       });
       setDepartments(mappedDepartments);
       setAllDepartments(Array.isArray(departmentsData) ? departmentsData : []);
-      setStudents(Array.isArray(studentsData.data) ? studentsData.data : []);
-      setStudentTotal(studentsData.meta?.total || 0);
-      setFaculty(Array.isArray(facultyData.data) ? facultyData.data : []);
-      setFacultyTotal(facultyData.meta?.total || 0);
+      const studentsArr = Array.isArray(studentsData) ? studentsData : (studentsData?.data || []);
+      setStudents(studentsArr);
+      setStudentTotal(studentsData?.meta?.total || studentsArr.length);
+      const facultyArr = Array.isArray(facultyData) ? facultyData : (facultyData?.data || []);
+      setFaculty(facultyArr);
+      setFacultyTotal(facultyData?.meta?.total || facultyArr.length);
 
-      const subjectsArr = Array.isArray(subjectsData.data) ? subjectsData.data : [];
-      setSubjectTotal(subjectsData.meta?.total || 0);
-      const divisionsArr = Array.isArray(divisionsData.data) ? divisionsData.data : [];
-      setDivisionTotal(divisionsData.meta?.total || 0);
+      const subjectsArr = Array.isArray(subjectsData) ? subjectsData : (subjectsData?.data || []);
+      setSubjectTotal(subjectsData?.meta?.total || subjectsArr.length);
+      const divisionsArr = Array.isArray(divisionsData) ? divisionsData : (divisionsData?.data || []);
+      setDivisionTotal(divisionsData?.meta?.total || divisionsArr.length);
 
       const filteredSubjects = subjectsArr.filter((s: any) => {
         const n = s?.semester?.number;
